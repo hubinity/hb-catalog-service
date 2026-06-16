@@ -1,17 +1,17 @@
-# 🛒 Sistema de Catálogo de Produtos — Café & Parafuso
+# 🛒 Sistema de Catálogo de Produtos — HiBit
 
-> Parte do ecossistema **Café & Parafuso** · Desenvolvido por alunos do Curso Técnico em Informática
+> Parte do ecossistema **HiBit** · Desenvolvido por alunos do Curso Técnico em Informática
 
 ---
 
 ## 📌 Sobre o Projeto
 
-O Sistema de Catálogo de Produtos é responsável por **centralizar todas as informações sobre os itens vendidos** pelo snack-bar Café & Parafuso. Ele funciona como a “vitrine digital” do negócio: é aqui que cada produto é cadastrado, atualizado e disponibilizado para os demais sistemas do ecossistema. <br><br>
+O Sistema de Catálogo de Produtos é responsável por **centralizar todas as informações sobre os itens vendidos** pelo snack-bar HiBit. Ele funciona como a “vitrine digital” do negócio: é aqui que cada produto é cadastrado, atualizado e disponibilizado para os demais sistemas do ecossistema. <br><br>
 Pense neste sistema como o **“depósito de informações” sobre tudo o que a lanchonete vende**. Sem ele, os outros sistemas não saberiam quais produtos existem, quanto custam ou se estão disponíveis.
 
 **Este sistema se integra com:**
 - [X] Sistema de Carrinho de Compras
-- [X] Sistema Principal (Café & Parafuso)
+- [X] Sistema Principal (HiBit)
 - [ ] Sistema de Controle de Caixa
 
 ---
@@ -29,13 +29,12 @@ Pense neste sistema como o **“depósito de informações” sobre tudo o que a
 
 | Camada | Tecnologia | Versão Recomendada |
 |---|---|---|
-| Linguagem | Java | 17+ |
-| Framework | Spring Boot | 4.0.6 |
-| Template Engine | Thymeleaf | 3.1.5 |
-| Banco de Dados | PostgreSQL | 15+ |
+| Linguagem | Java | 21+ |
+| Framework | Spring Boot | 4.1.0 |
+| Banco de Dados | PostgreSQL | 18 |
 | ORM | Spring Data JPA / Hibernate | - |
-| Build Tool | Maven | 3.9+ |
-| FrontEnd | HTML5 + CSS3 + TailwindCSS 4 | - |
+| Build Tool | Maven | 3.9.16 |
+| FrontEnd | Angular + TailwindCSS | 22 + 4 |
 | Servidor | Tomcat Embedded (Spring Boot) | - |
 | Controle de versão | Git + GitHub | - |
 
@@ -44,7 +43,7 @@ Pense neste sistema como o **“depósito de informações” sobre tudo o que a
 ## 📁 Estrutura do Projeto
 
 ```
-cp-product-catalog/
+hb-product-catalog/
 ├── src/
 │   ├── main/
 │   │   ├── java/
