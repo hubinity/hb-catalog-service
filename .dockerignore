@@ -1,0 +1,12 @@
+target/
+.git/
+.idea/
+*.iml
+node_modules/
+.vscode/
+**/.DS_Store
+*.md
+!README.md
+.flattened-pom.xml
+.env
+.env.*

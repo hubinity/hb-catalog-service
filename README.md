@@ -1,109 +1,114 @@
-# 🛒 Sistema de Catálogo de Produtos — Café & Parafuso
+# hb-catalog-service
 
-> Parte do ecossistema **Café & Parafuso** · Desenvolvido por alunos do Curso Técnico em Informática
+Hubinity's source-of-truth microservice for **HiBit** products, categories and
+stock. Exposes a REST API (contract: `contracts-catalog`) and publishes
+domain events to the `catalog.events` RabbitMQ exchange (contract:
+`contracts-events`).
 
----
+**Status:** Phase 1 — Catálogo (bootstrap). No business code yet; the empty
+skeleton in this commit lets `mvn package` and `docker build` succeed.
+Entities, controllers and publishers land in features 1.3 – 1.8.
 
-## 📌 Sobre o Projeto
+## Stack
 
-O Sistema de Catálogo de Produtos é responsável por **centralizar todas as informações sobre os itens vendidos** pelo snack-bar Café & Parafuso. Ele funciona como a “vitrine digital” do negócio: é aqui que cada produto é cadastrado, atualizado e disponibilizado para os demais sistemas do ecossistema. <br><br>
-Pense neste sistema como o **“depósito de informações” sobre tudo o que a lanchonete vende**. Sem ele, os outros sistemas não saberiam quais produtos existem, quanto custam ou se estão disponíveis.
+| Layer            | Technology                                      |
+|------------------|-------------------------------------------------|
+| Language         | Java 21 (LTS, Temurin)                          |
+| Framework        | Spring Boot 4.1.0                               |
+| Persistence      | Spring Data JPA + Hibernate, Flyway migrations  |
+| Database         | PostgreSQL 18 (cloud Supabase) / 16 (local)     |
+| Messaging        | RabbitMQ 3.13 (exchange `catalog.events`)       |
+| AuthN/AuthZ      | Keycloak (realm `hibit`) — Spring Security OAuth2 Resource Server |
+| Cache            | Caffeine (in-process), via Spring Cache         |
+| Resilience       | Resilience4j (Spring Boot 4 starter)            |
+| Mapping          | MapStruct 1.6.x                                 |
+| Observability    | Actuator + Micrometer + OpenTelemetry (OTLP)    |
+| API docs         | springdoc-openapi 3.x (Swagger UI in dev)       |
+| Build            | Maven 3.9                                       |
+| Container        | `eclipse-temurin:21-jre-alpine` runtime         |
 
-**Este sistema se integra com:**
-- [X] Sistema de Carrinho de Compras
-- [X] Sistema Principal (Café & Parafuso)
-- [ ] Sistema de Controle de Caixa
+See PRD section 4.1 and `docs/adr/` for the full rationale.
 
----
+## Local development
 
-## 🚀 Escopo Funcional (Alto Nível)
+### Prerequisites
 
-- [ ] Cadastro de Produtos (CRUD completo)
-- [ ] Gerenciamento de Categorias
-- [ ] Controle de Disponibilidade
-- [ ] Exposição de Dados (API)
+- JDK 21 (Temurin recommended)
+- Maven 3.9.x
+- Docker + Docker Compose (for the local Postgres / RabbitMQ / Keycloak stack)
 
----
-
-## 🛠️ Tecnologias
-
-| Camada | Tecnologia | Versão Recomendada |
-|---|---|---|
-| Linguagem | Java | 17+ |
-| Framework | Spring Boot | 4.0.6 |
-| Template Engine | Thymeleaf | 3.1.5 |
-| Banco de Dados | PostgreSQL | 15+ |
-| ORM | Spring Data JPA / Hibernate | - |
-| Build Tool | Maven | 3.9+ |
-| FrontEnd | HTML5 + CSS3 + TailwindCSS 4 | - |
-| Servidor | Tomcat Embedded (Spring Boot) | - |
-| Controle de versão | Git + GitHub | - |
-
----
-
-## 📁 Estrutura do Projeto
-
-```
-cp-product-catalog/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── br/com/cp-product-catalog/catalog
-|   │   │       ├── controller/          ← Controladores (recebem requisições)
-|   │   │       ├── service/             ← Regras de negócio
-|   │   │       ├── repository/          ← Acesso ao banco de dados
-|   │   │       ├── model/               ← Entidades (Produto, Categoria)
-|   │   │       └── dto/                 ← Objetos de transferência de dados
-|   |   └── resources/
-│   │       ├── static/                  ← Arquivos estáticos (CSS, JS)
-│   │       ├── templates/               ← Páginas Thymeleaf (HTML)
-│   │       └── application.properties   ← Configurações do sistema
-│   └── test/
-├── docs/
-├── .gitignore
-├── CONTRIBUTING.md
-├── pom.xml                              ← Dependências do projeto (Maven)     
-└── README.md
-```
-
----
-
-## ▶️ Como Executar
+### Quickstart
 
 ```bash
-# 1. Clone o repositório
-git clone https://github.com/SEU_USUARIO/cp-product-catalog.git
+# 1. Build the shared contracts once (publishes JARs to your local ~/.m2)
+( cd ../platform-shared-contracts && mvn -B -DskipTests install )
 
-# 2. Acesse a pasta
-cd cp-product-catalog
+# 2. Bring up the local stack (Postgres + RabbitMQ + Keycloak)
+( cd ../platform-infra && docker compose up -d postgres rabbitmq keycloak )
 
-# 3. Execute o projeto
-# (instruções específicas da equipe)
+# 3. Build + test this service
+mvn -B verify
+
+# 4. Run locally
+mvn spring-boot:run
+# or via Docker
+docker build -t hb-catalog-service:dev .
+docker run --rm -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=local \
+  --network host \
+  hb-catalog-service:dev
 ```
 
----
+The platform-wide stack lives in
+[`../platform-infra/docker-compose.yml`](../platform-infra/docker-compose.yml).
+Bringing the catalog service up as a compose service requires the opt-in
+`catalog` profile: `docker compose --profile catalog up`.
 
-## 🤝 Como Contribuir
+## Profiles
 
-Leia o arquivo [CONTRIBUTING.md](./CONTRIBUTING.md) antes de qualquer alteração.
+| Profile   | When                          | Notes                                                    |
+|-----------|-------------------------------|----------------------------------------------------------|
+| `local`   | `mvn spring-boot:run`         | Hard-coded `localhost` defaults for DB/MQ/Keycloak.      |
+| `test`    | `mvn test`                    | Excludes DataSource/JPA/Flyway/Rabbit auto-config — fully offline. |
+| `staging` | Railway / GitHub Actions      | All sensitive values via env vars.                       |
+| `prod`    | Production deploy             | `INFO` root, `WARN` Spring, Swagger UI off.              |
 
----
+Default profile: `local` (override with `SPRING_PROFILES_ACTIVE`).
 
-## 👥 Equipe
+## Environment variables (staging / prod)
 
-| Nome | Função |
-|---|---|
-| Khauan Rodrigues de Oliveira | Desenvolvedor |
-| Marllon Victor de Souza Lima | Desenvolvedor |
-| Ryan Paiva Alvarenga | Desenvolvedor |
-| Samuel Henrique Ferreira Barbosa | Desenvolvedor |
-| Samuel Martins Silva | Desenvolvedor |
-| Wender Lucas Viana Pereira | Desenvolvedor |
+| Variable                       | Required | Description                                       |
+|--------------------------------|----------|---------------------------------------------------|
+| `SPRING_PROFILES_ACTIVE`       | yes      | `staging` or `prod`                               |
+| `HB_CATALOG_DB_URL`            | yes      | JDBC URL, e.g. `jdbc:postgresql://host:5432/db`   |
+| `HB_CATALOG_DB_USERNAME`       | yes      | DB user                                           |
+| `HB_CATALOG_DB_PASSWORD`       | yes      | DB password                                       |
+| `CLOUDAMQP_URL`                | yes      | RabbitMQ AMQP URI (CloudAMQP-style)               |
+| `KEYCLOAK_ISSUER_URI`          | yes      | e.g. `https://iam.hubinity.io/realms/hibit`       |
+| `KEYCLOAK_JWK_URI`             | yes      | JWKS endpoint                                     |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`  | no       | Defaults to `http://localhost:4317`               |
+| `OTEL_SAMPLING`                | no       | Defaults to `0.1` (10% trace sampling)            |
+| `SERVER_PORT`                  | no       | Defaults to `8080`                                |
+| `SWAGGER_ENABLED`              | no       | Defaults to `true` in `local`, `false` otherwise  |
 
-**Orientador:** Lenoln Muniz · [LinkedIn](https://linkedin.com/in/lenoln-io)
+## Endpoints
 
----
+| Endpoint                       | Profile          | Description                       |
+|--------------------------------|------------------|-----------------------------------|
+| `GET /actuator/health`         | all              | Aggregate health (liveness + readiness probes via `/health/liveness`, `/health/readiness`) |
+| `GET /actuator/info`           | all              | Build info                        |
+| `GET /actuator/prometheus`     | all              | Metrics scrape endpoint           |
+| `GET /actuator/metrics`        | all              | Metric registry                   |
+| `GET /swagger-ui.html`         | `local` only     | API documentation UI              |
 
-## 📄 Licença
+## Documentation
 
-Este projeto é de uso educacional, desenvolvido como projeto integrador do Curso Técnico em Informática.
+- ADRs: [`docs/adr/`](./docs/adr/)
+- PRD: see `PRD-HUBINITY.md` at the workspace root, section 4.1 (HB Catalog).
+- Roadmap: features 1.2 – 1.15 are pending — see the feature board for the
+  ordered backlog (security config, entities, controllers, RabbitMQ
+  publisher, integration tests, etc.).
+
+## License
+
+MIT — see [`LICENSE`](./LICENSE).
