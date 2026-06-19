@@ -109,6 +109,54 @@ Default profile: `local` (override with `SPRING_PROFILES_ACTIVE`).
   ordered backlog (security config, entities, controllers, RabbitMQ
   publisher, integration tests, etc.).
 
+## Security
+
+The catalog service is a stateless OAuth2 Resource Server. Every request to
+`/api/**` must carry an `Authorization: Bearer <jwt>` issued by the Keycloak
+realm `hibit`. Spring Security validates the token (signature, `iss`, `exp`),
+then `KeycloakRealmRoleConverter` merges the realm- and client-scoped roles
+from the JWT into `ROLE_`-prefixed Spring authorities so
+`@PreAuthorize("hasRole('admin')")` and the filter-chain `hasRole(...)` checks
+work uniformly. The JWT's `preferred_username` claim is used as the principal
+name (see ADR 0002).
+
+### Fetch a local dev token
+
+```bash
+TOKEN=$(curl -s \
+  -d "client_id=hb-catalog-web" \
+  -d "username=admin-hibit" \
+  -d "password=admin123" \
+  -d "grant_type=password" \
+  http://localhost:8081/realms/hibit/protocol/openid-connect/token | jq -r .access_token)
+```
+
+### Call a protected endpoint
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/_diagnostics/me
+```
+
+### Diagnostics endpoints
+
+| Endpoint                              | Auth required                  | Purpose                                             |
+|---------------------------------------|--------------------------------|-----------------------------------------------------|
+| `GET /api/v1/_diagnostics/public`     | none                           | Sanity-check the filter chain reaches the controller. |
+| `GET /api/v1/_diagnostics/me`         | any valid JWT                  | Echoes principal name + resolved authorities.       |
+| `GET /api/v1/_diagnostics/admin-only` | JWT with realm role `admin`    | Verifies `@PreAuthorize` + role mapping end-to-end. |
+
+The `_diagnostics/*` package is a throwaway — it will be removed when the real
+catalog endpoints land in features 1.5+. The leading underscore in the folder
+name makes the removal a single `rm -rf` of the package.
+
+### Related ADRs
+
+- [`docs/adr/0002-jwt-role-mapping.md`](./docs/adr/0002-jwt-role-mapping.md)
+  — why realm + resource roles are both mapped, and how the `ROLE_` prefix
+  policy is applied.
+- [`docs/adr/0003-cors-allowlist.md`](./docs/adr/0003-cors-allowlist.md)
+  — CORS allowlist policy and the `APP_CORS_ALLOWED_ORIGINS` env knob.
+
 ## License
 
 MIT — see [`LICENSE`](./LICENSE).

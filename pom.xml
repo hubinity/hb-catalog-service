@@ -172,6 +172,16 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!--
+            Spring Boot 4 moved the @WebMvcTest slice out of spring-boot-starter-test
+            and into its own starter. Needed for the controller security slice test
+            in src/test/.../api/_diagnostics/DiagnosticsControllerSecurityTest.java.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
