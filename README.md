@@ -75,6 +75,29 @@ Bringing the catalog service up as a compose service requires the opt-in
 
 Default profile: `local` (override with `SPRING_PROFILES_ACTIVE`).
 
+### Schema
+
+Flyway provisions the catalog schema on startup. The initial migration
+([`V1__init.sql`](./src/main/resources/db/migration/V1__init.sql)) creates a
+`uuidv7()` PK generator, a `set_updated_at()` audit trigger and five tables:
+
+| Table               | Purpose                                                              |
+|---------------------|----------------------------------------------------------------------|
+| `category`          | Product categories (logical tree via `parent_id`).                   |
+| `product`           | Sellable items, priced and FK'd to `category`.                       |
+| `stock_item`        | 1:1 with product — current `available` / `reserved` / `reorder_point` counts. |
+| `stock_movement`    | Append-only journal of stock changes (IN/OUT/RESERVE/RELEASE/COMMIT). |
+| `stock_reservation` | Short-lived holds against available stock (ACTIVE → COMMITTED/RELEASED/EXPIRED). |
+
+Soft-delete follows the [`deleted_at TIMESTAMPTZ`](./docs/adr/0011-soft-delete-deleted-at.md)
+convention (ADR 0011): `category` and `product` carry the column; the journal
+and stock tables do not.
+
+The Flyway migration is integration-tested against a Testcontainers Postgres 16
+instance in `FlywayMigrationIT`. Default `mvn test` skips it (tag-based
+exclusion); run it with `mvn -P integration-tests verify` when Docker is
+available.
+
 ## Environment variables (staging / prod)
 
 | Variable                       | Required | Description                                       |

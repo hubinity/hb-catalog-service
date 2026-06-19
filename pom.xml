@@ -244,6 +244,15 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!--
+                        Default test run skips JUnit 5 tests tagged with
+                        @Tag("integration") (Testcontainers, Keycloak, etc.).
+                        Use the integration-tests profile to flip this — see
+                        the <profiles> block below.
+                    -->
+                    <excludedGroups>integration</excludedGroups>
+                </configuration>
             </plugin>
 
             <plugin>
@@ -275,5 +284,39 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+            mvn -P integration-tests verify
+            Runs ONLY the JUnit 5 tests tagged @Tag("integration") via the
+            failsafe plugin (Surefire excludes them by default). Requires a
+            working Docker daemon for the Testcontainers-backed suites.
+        -->
+        <profile>
+            <id>integration-tests</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <groups>integration</groups>
+                            <includes>
+                                <include>**/*IT.java</include>
+                            </includes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
