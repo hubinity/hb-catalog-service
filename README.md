@@ -1,164 +1,231 @@
-# hb-catalog-service
+# hb-catalog-service (Backend) - Ecossistema Hubinity - In Progress
+> Parte integrante do ecossistema distribuído Hubinity.
 
-Hubinity's source-of-truth microservice for **HiBit** products, categories and
-stock. Exposes a REST API (contract: `contracts-catalog`) and publishes
-domain events to the `catalog.events` RabbitMQ exchange (contract:
-`contracts-events`).
+---
 
-**Status:** Phase 1 — Catálogo (bootstrap). No business code yet; the empty
-skeleton in this commit lets `mvn package` and `docker build` succeed.
-Entities, controllers and publishers land in features 1.3 – 1.8.
+## 💻 Visão Geral
+- **O que faz:** Microsserviço **source-of-truth do catálogo HiBit** — gerencia produtos, categorias, estoque (disponível/reservado/reorder point), movimentações de estoque (journal append-only) e reservas com TTL. Expõe REST API alinhada ao contrato `contracts-catalog` e publicará eventos de mudança de produto/preço/estoque na exchange RabbitMQ `catalog.events` (publisher planejado para Phase 1.8).
+- **Problema que resolve:** Concentra em um único serviço a verdade sobre "o que existe à venda" no ecossistema HiBit, evitando estoque divergente entre cashier/support/order. Atualmente, contracts-events permitem que `sc-order-service` e `hb-cashier-service` se mantenham eventualmente consistentes sem chamadas síncronas no caminho crítico.
+- **Posicionamento no Ecossistema:** Backend Spring Boot rodando no realm Keycloak `hibit`. **Phase 1 em construção** (Phase 1.4 atual — segurança e diagnostics no ar; entidades e controllers principais aterrissam nas features 1.5 – 1.8). O esqueleto atual já passa em `mvn verify` (31/31 testes) e `docker build`.
 
-## Stack
+## 🏗️ Papel na Arquitetura
+- **Tipo de Componente:** Microsserviço REST + (futuro) publisher de eventos AMQP.
+- **Responsabilidades Principais:**
+  - Persistir e expor entidades do domínio catálogo (`Category`, `Product`, `StockItem`, `StockMovement`, `StockReservation`).
+  - Validar JWTs emitidos pelo realm `hibit` (OAuth2 Resource Server) e aplicar autorização via roles realm-scoped.
+  - (Planejado) publicar eventos de domínio em `catalog.events` quando o estado mudar.
+  - Expor métricas Prometheus, tracing OTLP e health probes via Actuator.
+- **Limites e Fronteiras (Boundaries):**
+  - **Não** processa pedidos (responsabilidade de `sc-order-service`) nem cobranças (responsabilidade de `hb-cashier-service`).
+  - **Não** emite JWTs — apenas valida; emissão é do Keycloak.
+  - **Não** modela cross-realm — para servir o `sc-order-service` (realm `star-coffee`) há um scope `catalog:read` planejado para gateway na Fase 5.
 
-| Layer            | Technology                                      |
-|------------------|-------------------------------------------------|
-| Language         | Java 21 (LTS, Temurin)                          |
-| Framework        | Spring Boot 4.1.0                               |
-| Persistence      | Spring Data JPA + Hibernate, Flyway migrations  |
-| Database         | PostgreSQL 18 (cloud Supabase) / 16 (local)     |
-| Messaging        | RabbitMQ 3.13 (exchange `catalog.events`)       |
-| AuthN/AuthZ      | Keycloak (realm `hibit`) — Spring Security OAuth2 Resource Server |
-| Cache            | Caffeine (in-process), via Spring Cache         |
-| Resilience       | Resilience4j (Spring Boot 4 starter)            |
-| Mapping          | MapStruct 1.6.x                                 |
-| Observability    | Actuator + Micrometer + OpenTelemetry (OTLP)    |
-| API docs         | springdoc-openapi 3.x (Swagger UI in dev)       |
-| Build            | Maven 3.9                                       |
-| Container        | `eclipse-temurin:21-jre-alpine` runtime         |
+## 🔗 Dependências e Comunicação
+### Serviços Internos da Hubinity
+- **`platform-iam`** (realm `hibit`) — fonte dos JWTs validados pelo OAuth2 Resource Server.
+- **`platform-shared-contracts`** — JARs `contracts-catalog:0.1.0-SNAPSHOT` (DTOs) e `contracts-events:0.1.0-SNAPSHOT` (schemas de evento).
+- **`platform-infra`** — stack local (postgres + rabbitmq + keycloak) usada em dev; também builda este serviço quando o profile `catalog` é ativado.
 
-See PRD section 4.1 and `docs/adr/` for the full rationale.
+### Infraestrutura e Serviços Externos
+- **PostgreSQL** — Supabase em cloud (PG 18), container `postgres:16-alpine` em dev local.
+- **RabbitMQ** — CloudAMQP em cloud, container `rabbitmq:3.13-management-alpine` em dev local. Este serviço será **publisher** na exchange `catalog.events`.
+- **Keycloak** — Railway Hobby em cloud, container `quay.io/keycloak/keycloak:26.0` em dev local.
 
-## Local development
+## 🛠️ Tecnologias e Ferramentas
+| Camada | Tecnologia | Versão |
+| :--- | :--- | :--- |
+| Linguagem | Java | 21 (LTS, Temurin) |
+| Framework | Spring Boot (parent) | 4.1.0 |
+| Web / Validation | spring-boot-starter-web + starter-validation | (gerenciado pelo parent) |
+| Persistence | spring-boot-starter-data-jpa + Hibernate | (gerenciado pelo parent) |
+| Migrations | Flyway core + flyway-database-postgresql | (gerenciado pelo parent) |
+| JDBC | postgresql (runtime scope) | (gerenciado pelo parent) |
+| Messaging | spring-boot-starter-amqp | (gerenciado pelo parent) |
+| Security | starter-security + starter-oauth2-resource-server | (gerenciado pelo parent) |
+| Cache | starter-cache + Caffeine | (gerenciado pelo parent) |
+| Resilience | resilience4j-spring-boot4 + resilience4j-reactor | 2.4.0 |
+| Mapping | MapStruct (processor model `spring`) | 1.6.3 |
+| API Docs | springdoc-openapi-starter-webmvc-ui | 3.0.3 |
+| Observabilidade | actuator + micrometer-tracing-bridge-otel + otlp exporter + micrometer-registry-prometheus | (gerenciado pelo parent) |
+| Test | starter-test + starter-webmvc-test + spring-security-test | 4.1.0 / 7.1.0 |
+| Integration test | Testcontainers (junit-jupiter + postgresql + rabbitmq) | 1.20.4 |
+| Coverage | jacoco-maven-plugin | 0.8.12 |
+| Build | Maven | 3.9.x |
+| Container | `eclipse-temurin:21-jre-alpine` runtime / `maven:3.9-eclipse-temurin-21-alpine` builder | — |
+| Contratos internos | `com.hubinity:contracts-catalog` + `contracts-events` | 0.1.0-SNAPSHOT |
 
-### Prerequisites
+## 📐 Padrões de Projeto e Arquitetura do Código
+- **Estilo Arquitetural:** **Layered DDD-lite** — `domain` (entidades + repositórios JPA), `api` (controllers + DTO + MapStruct mappers), `config` (security, auditing), `integration` (futuro: AMQP publishers).
+- **Padrões Relevantes:**
+  - **Contract-first** — DTOs vêm do `platform-shared-contracts`; controllers são manualmente alinhados aos endpoints OpenAPI.
+  - **Soft delete via `deleted_at TIMESTAMPTZ`** (ver ADR 0011) — aplicado em `category` e `product`; journals (`stock_movement`) não.
+  - **UUID v7 PKs gerados DB-side** (ver ADR 0009) — função `uuidv7()` provisionada pelo `V1__init.sql`.
+  - **MapStruct para DTO mapping** (ver ADR 0010) — `defaultComponentModel=spring`, `unmappedTargetPolicy=IGNORE`.
+  - **`SecurityContextAuditorAware`** popula `created_by`/`updated_by` automaticamente a partir do `preferred_username` do JWT.
+  - **Role mapping JWT → Spring authorities** via `KeycloakRealmRoleConverter` (ver ADR 0002) — funde roles realm-scoped e client-scoped sob prefixo `ROLE_`.
 
-- JDK 21 (Temurin recommended)
-- Maven 3.9.x
-- Docker + Docker Compose (for the local Postgres / RabbitMQ / Keycloak stack)
+## 📂 Estrutura do Projeto
+```text
+hb-catalog-service/
+├── README.md
+├── pom.xml                                       # parent: spring-boot 4.1.0
+├── Dockerfile                                    # multi-stage: maven builder + temurin-21-jre-alpine runtime
+├── BRANCHES.md / CONTRIBUTING.md / LICENSE
+├── docs/
+│   └── adr/                                      # 5 ADRs (0002, 0003, 0009, 0010, 0011)
+└── src/
+    ├── main/
+    │   ├── java/com/hubinity/catalog/
+    │   │   ├── HbCatalogServiceApplication.java
+    │   │   ├── api/
+    │   │   │   ├── _diagnostics/                 # ⚠️ TEMPORÁRIO — removido em Phase 1.5+
+    │   │   │   ├── dto/                          # CategoryRequest/Response, ProductRequest/Response, StockItem/Movement/Reservation
+    │   │   │   └── mapper/                       # MapStruct (CategoryMapper, ProductMapper, StockItem/Movement/ReservationMapper)
+    │   │   ├── config/                           # SecurityConfig, KeycloakRealmRoleConverter, JpaAuditingConfig, SecurityContextAuditorAware
+    │   │   ├── domain/                           # Category, Product, StockItem, StockMovement, StockReservation + Repositórios JPA + enums
+    │   │   └── integration/                      # (reservado para AMQP publishers — Phase 1.8)
+    │   └── resources/
+    │       ├── application.yml                   # config base
+    │       ├── application-local.yml             # defaults hardcoded localhost
+    │       ├── application-staging.yml           # tudo via env
+    │       ├── application-prod.yml              # tudo via env, INFO root, Swagger OFF
+    │       └── db/migration/V1__init.sql         # uuidv7() + set_updated_at() + 5 tabelas
+    └── test/
+        └── java/com/hubinity/catalog/            # 10 classes de teste (config, db, domain, api/_diagnostics)
+```
 
-### Quickstart
+## ⚙️ Configuração e Variáveis de Ambiente
 
+### Perfis Spring
+| Profile   | Quando se ativa             | Notas                                                                  |
+| --------- | --------------------------- | ---------------------------------------------------------------------- |
+| `local`   | default (`mvn spring-boot:run`) | Defaults hardcoded localhost para DB/MQ/Keycloak.                  |
+| `test`    | `mvn test`                  | Exclui DataSource/JPA/Flyway/Rabbit auto-config — totalmente offline.  |
+| `staging` | Railway / GitHub Actions    | Todas credenciais via env.                                             |
+| `prod`    | deploy produção             | `INFO` root, `WARN` Spring, Swagger UI desligado.                      |
+
+Default: `local` (override via `SPRING_PROFILES_ACTIVE`).
+
+### Variáveis (staging / prod)
 ```bash
-# 1. Build the shared contracts once (publishes JARs to your local ~/.m2)
+# Spring
+SPRING_PROFILES_ACTIVE=staging          # ou prod
+SERVER_PORT=8080                        # opcional, default 8080
+
+# PostgreSQL
+HB_CATALOG_DB_URL=jdbc:postgresql://<host>:5432/<db>
+HB_CATALOG_DB_USERNAME=<user>
+HB_CATALOG_DB_PASSWORD=<pwd>
+
+# RabbitMQ (CloudAMQP)
+CLOUDAMQP_URL=amqps://<user>:<pwd>@<host>/<vhost>
+
+# Keycloak
+KEYCLOAK_ISSUER_URI=https://iam.hubinity.io/realms/hibit
+KEYCLOAK_JWK_URI=https://iam.hubinity.io/realms/hibit/protocol/openid-connect/certs
+HB_CATALOG_KEYCLOAK_CLIENT_ID=hb-catalog-service     # opcional, default hb-catalog-service
+
+# CORS (default permite portas 4200-4203 das 4 SPAs locais)
+APP_CORS_ALLOWED_ORIGINS=https://catalog.hubinity.io,https://support.hubinity.io,...
+
+# Observabilidade
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317    # opcional
+OTEL_SAMPLING=0.1                                    # opcional, default 0.1 (10%)
+
+# Swagger
+SWAGGER_ENABLED=false                                # default true em local, false otherwise
+```
+
+## 🚀 Como Instalar e Executar
+### Pré-requisitos
+- JDK 21 (Temurin recomendado)
+- Maven 3.9.x
+- Docker + Docker Compose (para a stack local Postgres/RabbitMQ/Keycloak via `platform-infra`)
+
+### Passos para Instalação
+```bash
+# 1. Buildar os contratos compartilhados (uma vez por máquina, ou após mudanças no shared-contracts)
 ( cd ../platform-shared-contracts && mvn -B -DskipTests install )
 
-# 2. Bring up the local stack (Postgres + RabbitMQ + Keycloak)
-( cd ../platform-infra && docker compose up -d postgres rabbitmq keycloak )
-
-# 3. Build + test this service
+# 2. Buildar e testar este serviço
 mvn -B verify
+```
 
-# 4. Run locally
+### Execução Local
+```bash
+# 1. Subir a stack base (postgres + rabbitmq + keycloak com realms já populados)
+( cd ../platform-infra && make up )
+
+# 2. Rodar via Maven (profile `local` por default)
 mvn spring-boot:run
-# or via Docker
+
+# Ou rodar o jar empacotado
+mvn -DskipTests package
+java -jar target/hb-catalog-service-0.1.0-SNAPSHOT.jar
+```
+
+O serviço sobe em http://localhost:8080. Health: `GET /actuator/health`. Swagger (apenas profile `local`): http://localhost:8080/swagger-ui.html.
+
+### Execução via Docker
+```bash
+# Build da imagem (multi-stage: builder maven + runtime temurin-21-jre-alpine)
 docker build -t hb-catalog-service:dev .
+
+# Run standalone (precisa rede para alcançar a stack do platform-infra)
 docker run --rm -p 8080:8080 \
   -e SPRING_PROFILES_ACTIVE=local \
   --network host \
   hb-catalog-service:dev
+
+# OU subir já integrado à stack do platform-infra via profile `catalog`
+( cd ../platform-infra && make up-catalog )
 ```
 
-The platform-wide stack lives in
-[`../platform-infra/docker-compose.yml`](../platform-infra/docker-compose.yml).
-Bringing the catalog service up as a compose service requires the opt-in
-`catalog` profile: `docker compose --profile catalog up`.
+## 🛣️ Endpoints Principais
 
-## Profiles
+### Atualmente expostos (Phase 1.4)
+| Endpoint                                | Profile         | Auth                                | Descrição                                         |
+| --------------------------------------- | --------------- | ----------------------------------- | ------------------------------------------------- |
+| `GET /actuator/health`                  | all             | público                             | Aggregate health + liveness/readiness probes.     |
+| `GET /actuator/info`                    | all             | público                             | Build info.                                       |
+| `GET /actuator/prometheus`              | all             | ROLE_admin                          | Métricas Prometheus.                              |
+| `GET /actuator/metrics/**`              | all             | ROLE_admin                          | Registry Micrometer.                              |
+| `GET /swagger-ui.html` / `/v3/api-docs` | `local` apenas  | público (em local)                  | Swagger UI / OpenAPI JSON.                        |
+| `GET /api/v1/_diagnostics/public`       | all             | público ⚠️ TEMPORÁRIO              | Sanity-check do filter chain.                     |
+| `GET /api/v1/_diagnostics/me`           | all             | JWT válido qualquer ⚠️ TEMPORÁRIO  | Echoes principal + authorities.                   |
+| `GET /api/v1/_diagnostics/admin-only`   | all             | ROLE_admin ⚠️ TEMPORÁRIO            | Verifica `@PreAuthorize` + role mapping.          |
 
-| Profile   | When                          | Notes                                                    |
-|-----------|-------------------------------|----------------------------------------------------------|
-| `local`   | `mvn spring-boot:run`         | Hard-coded `localhost` defaults for DB/MQ/Keycloak.      |
-| `test`    | `mvn test`                    | Excludes DataSource/JPA/Flyway/Rabbit auto-config — fully offline. |
-| `staging` | Railway / GitHub Actions      | All sensitive values via env vars.                       |
-| `prod`    | Production deploy             | `INFO` root, `WARN` Spring, Swagger UI off.              |
+> ⚠️ O package `_diagnostics/*` é descartável — será removido em features 1.5+ quando os endpoints reais aterrissarem. O underscore prefix permite remoção via `rm -rf` de um único package.
 
-Default profile: `local` (override with `SPRING_PROFILES_ACTIVE`).
+### Próximos (planejados para Phase 1.5 – 1.7)
+- `GET|POST|PUT|DELETE /api/v1/categories`
+- `GET|POST|PUT|DELETE /api/v1/products`
+- `GET|POST /api/v1/stock/*` (consultas + movimentações + reservas)
 
-### Schema
+## 🔄 Fluxos Principais
 
-Flyway provisions the catalog schema on startup. The initial migration
-([`V1__init.sql`](./src/main/resources/db/migration/V1__init.sql)) creates a
-`uuidv7()` PK generator, a `set_updated_at()` audit trigger and five tables:
+### Domain Model
+| Entidade           | Tabela              | Soft delete | Audit                     | Notas                                                                 |
+| ------------------ | ------------------- | ----------- | ------------------------- | --------------------------------------------------------------------- |
+| `Category`         | `category`          | ✓           | ✓                         | Self-FK via `parentId` (sem relacionamento JPA).                      |
+| `Product`          | `product`           | ✓           | ✓                         | `sku` partial UNIQUE excluindo soft-deleted.                          |
+| `StockItem`        | `stock_item`        | —           | ✓                         | PK = `productId` (FK para product).                                   |
+| `StockMovement`    | `stock_movement`    | —           | append-only (sem `updated_at`) | Journal de IN/OUT/RESERVE/RELEASE/COMMIT.                        |
+| `StockReservation` | `stock_reservation` | —           | ✓                         | TTL via `expiresAt` + state machine ACTIVE → COMMITTED/RELEASED/EXPIRED. |
 
-| Table               | Purpose                                                              |
-|---------------------|----------------------------------------------------------------------|
-| `category`          | Product categories (logical tree via `parent_id`).                   |
-| `product`           | Sellable items, priced and FK'd to `category`.                       |
-| `stock_item`        | 1:1 with product — current `available` / `reserved` / `reorder_point` counts. |
-| `stock_movement`    | Append-only journal of stock changes (IN/OUT/RESERVE/RELEASE/COMMIT). |
-| `stock_reservation` | Short-lived holds against available stock (ACTIVE → COMMITTED/RELEASED/EXPIRED). |
+UUID v7 PKs gerados DB-side (ver ADR 0009). Soft-delete por `deleted_at TIMESTAMPTZ` (ver ADR 0011). Mapping via MapStruct (ver ADR 0010).
 
-Soft-delete follows the [`deleted_at TIMESTAMPTZ`](./docs/adr/0011-soft-delete-deleted-at.md)
-convention (ADR 0011): `category` and `product` carry the column; the journal
-and stock tables do not.
+### Fluxo async planejado (Phase 1.8 — ainda não em produção)
+1. Admin chama `POST /api/v1/products` com JWT realm role `admin`.
+2. `KeycloakRealmRoleConverter` mapeia roles → Spring authorities; `@PreAuthorize("hasRole('admin')")` libera.
+3. Service persiste em Postgres; `SecurityContextAuditorAware` popula `created_by` a partir do `preferred_username`.
+4. Publisher AMQP emite `ProductCreated` em `catalog.events` (exchange topic durable).
+5. Consumers (`hb-cashier-service`, `sc-order-service` futuros) atualizam caches/projeções via fila + DLX.
 
-The Flyway migration is integration-tested against a Testcontainers Postgres 16
-instance in `FlywayMigrationIT`. Default `mvn test` skips it (tag-based
-exclusion); run it with `mvn -P integration-tests verify` when Docker is
-available.
+## 🔐 Segurança
+Serviço stateless OAuth2 Resource Server. Toda request em `/api/**` exige `Authorization: Bearer <jwt>` emitido pelo realm Keycloak `hibit`. Spring Security valida assinatura, `iss` e `exp`; em seguida `KeycloakRealmRoleConverter` funde realm-scoped + client-scoped roles em authorities prefixadas com `ROLE_`, de modo que `@PreAuthorize("hasRole('admin')")` e os checks `hasRole(...)` da filter chain funcionem uniformemente. O `preferred_username` do JWT vira o nome do principal (ver ADR 0002).
 
-### Domain model
-
-| Entity | Table | Soft delete | Audit | Notes |
-|---|---|---|---|---|
-| `Category` | `category` | ✓ | ✓ | Self-FK via `parentId` (no JPA relationship) |
-| `Product` | `product` | ✓ | ✓ | `sku` partial UNIQUE excludes soft-deleted |
-| `StockItem` | `stock_item` | — | ✓ | PK = `productId` (FK to product) |
-| `StockMovement` | `stock_movement` | — | append-only (no `updated_at`) | Journal of stock changes |
-| `StockReservation` | `stock_reservation` | — | ✓ | TTL via `expiresAt` + status state machine |
-
-UUID v7 PKs are generated DB-side (see [ADR 0009](docs/adr/0009-uuid-v7-db-default.md)).
-Soft delete uses `deleted_at TIMESTAMPTZ` (see [ADR 0011](docs/adr/0011-soft-delete-deleted-at.md)).
-Mapping uses MapStruct (see [ADR 0010](docs/adr/0010-mapstruct-vs-manual-mappers.md)).
-
-## Environment variables (staging / prod)
-
-| Variable                       | Required | Description                                       |
-|--------------------------------|----------|---------------------------------------------------|
-| `SPRING_PROFILES_ACTIVE`       | yes      | `staging` or `prod`                               |
-| `HB_CATALOG_DB_URL`            | yes      | JDBC URL, e.g. `jdbc:postgresql://host:5432/db`   |
-| `HB_CATALOG_DB_USERNAME`       | yes      | DB user                                           |
-| `HB_CATALOG_DB_PASSWORD`       | yes      | DB password                                       |
-| `CLOUDAMQP_URL`                | yes      | RabbitMQ AMQP URI (CloudAMQP-style)               |
-| `KEYCLOAK_ISSUER_URI`          | yes      | e.g. `https://iam.hubinity.io/realms/hibit`       |
-| `KEYCLOAK_JWK_URI`             | yes      | JWKS endpoint                                     |
-| `OTEL_EXPORTER_OTLP_ENDPOINT`  | no       | Defaults to `http://localhost:4317`               |
-| `OTEL_SAMPLING`                | no       | Defaults to `0.1` (10% trace sampling)            |
-| `SERVER_PORT`                  | no       | Defaults to `8080`                                |
-| `SWAGGER_ENABLED`              | no       | Defaults to `true` in `local`, `false` otherwise  |
-
-## Endpoints
-
-| Endpoint                       | Profile          | Description                       |
-|--------------------------------|------------------|-----------------------------------|
-| `GET /actuator/health`         | all              | Aggregate health (liveness + readiness probes via `/health/liveness`, `/health/readiness`) |
-| `GET /actuator/info`           | all              | Build info                        |
-| `GET /actuator/prometheus`     | all              | Metrics scrape endpoint           |
-| `GET /actuator/metrics`        | all              | Metric registry                   |
-| `GET /swagger-ui.html`         | `local` only     | API documentation UI              |
-
-## Documentation
-
-- ADRs: [`docs/adr/`](./docs/adr/)
-- PRD: see `PRD-HUBINITY.md` at the workspace root, section 4.1 (HB Catalog).
-- Roadmap: features 1.2 – 1.15 are pending — see the feature board for the
-  ordered backlog (security config, entities, controllers, RabbitMQ
-  publisher, integration tests, etc.).
-
-## Security
-
-The catalog service is a stateless OAuth2 Resource Server. Every request to
-`/api/**` must carry an `Authorization: Bearer <jwt>` issued by the Keycloak
-realm `hibit`. Spring Security validates the token (signature, `iss`, `exp`),
-then `KeycloakRealmRoleConverter` merges the realm- and client-scoped roles
-from the JWT into `ROLE_`-prefixed Spring authorities so
-`@PreAuthorize("hasRole('admin')")` and the filter-chain `hasRole(...)` checks
-work uniformly. The JWT's `preferred_username` claim is used as the principal
-name (see ADR 0002).
-
-### Fetch a local dev token
-
+### Obter um token DEV (stack local rodando)
 ```bash
 TOKEN=$(curl -s \
   -d "client_id=hb-catalog-web" \
@@ -168,32 +235,34 @@ TOKEN=$(curl -s \
   http://localhost:8081/realms/hibit/protocol/openid-connect/token | jq -r .access_token)
 ```
 
-### Call a protected endpoint
-
+### Chamar endpoint protegido
 ```bash
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/v1/_diagnostics/me
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/api/v1/_diagnostics/me
 ```
 
-### Diagnostics endpoints
+## 📊 Observabilidade e Testes
+- **Logs:** Logback default com pattern enriquecido por `traceId`/`spanId`: `%5p [traceId=%X{traceId:-} spanId=%X{spanId:-}]` (em `application.yml`).
+- **Tracing:** Micrometer Tracing bridge + OTLP exporter. Sampling default `0.1` (10%), configurável via `OTEL_SAMPLING`. Endpoint default `http://localhost:4317` (OTLP gRPC), override via `OTEL_EXPORTER_OTLP_ENDPOINT`.
+- **Métricas:** Micrometer → Prometheus via Actuator (`/actuator/prometheus`, restrito a `ROLE_admin`).
+- **Health probes:** `/actuator/health/liveness` e `/actuator/health/readiness` habilitadas (Kubernetes-friendly).
+- **Como Rodar os Testes:**
+  - Unit / WebMvc slice / config: `mvn test` → **31/31 PASS** (Surefire exclui automaticamente testes `@Tag("integration")`).
+  - Integration (Testcontainers — exige Docker): `mvn -P integration-tests verify` (Failsafe roda apenas `**/*IT.java` com tag `integration`).
+  - Coverage: JaCoCo gera relatório em `target/site/jacoco/` na phase `verify`. PRD seta meta de 80%; sem `<check>` enforce hoje (bootstrap module).
 
-| Endpoint                              | Auth required                  | Purpose                                             |
-|---------------------------------------|--------------------------------|-----------------------------------------------------|
-| `GET /api/v1/_diagnostics/public`     | none                           | Sanity-check the filter chain reaches the controller. |
-| `GET /api/v1/_diagnostics/me`         | any valid JWT                  | Echoes principal name + resolved authorities.       |
-| `GET /api/v1/_diagnostics/admin-only` | JWT with realm role `admin`    | Verifies `@PreAuthorize` + role mapping end-to-end. |
+---
 
-The `_diagnostics/*` package is a throwaway — it will be removed when the real
-catalog endpoints land in features 1.5+. The leading underscore in the folder
-name makes the removal a single `rm -rf` of the package.
+## 📚 ADRs (Decisões de Arquitetura)
+Consulte `docs/adr/` para o histórico:
+- **0002** — JWT role mapping (realm + resource roles, política do prefixo `ROLE_`).
+- **0003** — CORS allowlist (knob `APP_CORS_ALLOWED_ORIGINS`).
+- **0009** — UUID v7 gerado DB-side (função `uuidv7()`).
+- **0010** — MapStruct (vs manual mappers).
+- **0011** — Soft delete via `deleted_at TIMESTAMPTZ`.
 
-### Related ADRs
+## 🗺️ Roadmap (Phase 1)
+Features 1.5 – 1.15 pendentes: entidades JPA mapeadas para os endpoints reais, controllers de catálogo/estoque, RabbitMQ publisher, testes de integração end-to-end, hardening de produção. Ver o board do feature para o backlog ordenado.
 
-- [`docs/adr/0002-jwt-role-mapping.md`](./docs/adr/0002-jwt-role-mapping.md)
-  — why realm + resource roles are both mapped, and how the `ROLE_` prefix
-  policy is applied.
-- [`docs/adr/0003-cors-allowlist.md`](./docs/adr/0003-cors-allowlist.md)
-  — CORS allowlist policy and the `APP_CORS_ALLOWED_ORIGINS` env knob.
-
-## License
-
-MIT — see [`LICENSE`](./LICENSE).
+## 📄 Licença
+MIT — ver [`LICENSE`](./LICENSE).
