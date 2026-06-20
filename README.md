@@ -98,6 +98,20 @@ instance in `FlywayMigrationIT`. Default `mvn test` skips it (tag-based
 exclusion); run it with `mvn -P integration-tests verify` when Docker is
 available.
 
+### Domain model
+
+| Entity | Table | Soft delete | Audit | Notes |
+|---|---|---|---|---|
+| `Category` | `category` | ✓ | ✓ | Self-FK via `parentId` (no JPA relationship) |
+| `Product` | `product` | ✓ | ✓ | `sku` partial UNIQUE excludes soft-deleted |
+| `StockItem` | `stock_item` | — | ✓ | PK = `productId` (FK to product) |
+| `StockMovement` | `stock_movement` | — | append-only (no `updated_at`) | Journal of stock changes |
+| `StockReservation` | `stock_reservation` | — | ✓ | TTL via `expiresAt` + status state machine |
+
+UUID v7 PKs are generated DB-side (see [ADR 0009](docs/adr/0009-uuid-v7-db-default.md)).
+Soft delete uses `deleted_at TIMESTAMPTZ` (see [ADR 0011](docs/adr/0011-soft-delete-deleted-at.md)).
+Mapping uses MapStruct (see [ADR 0010](docs/adr/0010-mapstruct-vs-manual-mappers.md)).
+
 ## Environment variables (staging / prod)
 
 | Variable                       | Required | Description                                       |

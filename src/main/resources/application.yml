@@ -10,6 +10,9 @@ spring:
     properties:
       hibernate.jdbc.batch_size: 50
       hibernate.order_inserts: true
+      # Forces Instant <-> TIMESTAMPTZ serialization in UTC; without this Hibernate uses the JVM default zone.
+      hibernate.jdbc.time_zone: UTC
+      hibernate.generate_statistics: false
   flyway:
     enabled: true
     baseline-on-migrate: true

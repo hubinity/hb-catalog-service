@@ -231,13 +231,10 @@
                             <version>${mapstruct.version}</version>
                         </path>
                     </annotationProcessorPaths>
-                    <!--
-                        MapStruct compiler args (-Amapstruct.defaultComponentModel=spring,
-                        -Amapstruct.unmappedTargetPolicy=ERROR) are intentionally NOT
-                        set here yet — the processor warns "options not recognized" when
-                        no @Mapper exists. Enable them in feature 1.5 alongside the first
-                        DTO mapper.
-                    -->
+                    <compilerArgs>
+                        <arg>-Amapstruct.defaultComponentModel=spring</arg>
+                        <arg>-Amapstruct.unmappedTargetPolicy=IGNORE</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 
