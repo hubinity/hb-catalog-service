@@ -13,7 +13,7 @@ public record ProductRequest(
         @NotBlank @Size(max = 64) String sku,
         @NotBlank @Size(max = 200) String name,
         String description,
-        @NotNull @DecimalMin("0.00") BigDecimal price,
+        @NotNull @DecimalMin(value = "0.00", inclusive = false) BigDecimal price,
         @DecimalMin("0.00") BigDecimal costPrice,
         @NotNull UUID categoryId,
         Boolean active,

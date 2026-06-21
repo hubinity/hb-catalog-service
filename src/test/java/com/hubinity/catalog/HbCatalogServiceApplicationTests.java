@@ -7,6 +7,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.hubinity.catalog.domain.CategoryRepository;
+import com.hubinity.catalog.domain.PriceHistoryRepository;
+import com.hubinity.catalog.domain.ProductRepository;
+import com.hubinity.catalog.domain.StockItemRepository;
+import com.hubinity.catalog.domain.StockReservationRepository;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -32,6 +36,23 @@ class HbCatalogServiceApplicationTests {
      */
     @MockitoBean
     private CategoryRepository categoryRepository;
+
+    /**
+     * {@code ProductService} (002-product-rest-endpoints) needs four more JPA
+     * repositories that don't exist in this offline context, for the same
+     * reason as {@link #categoryRepository} above.
+     */
+    @MockitoBean
+    private ProductRepository productRepository;
+
+    @MockitoBean
+    private PriceHistoryRepository priceHistoryRepository;
+
+    @MockitoBean
+    private StockItemRepository stockItemRepository;
+
+    @MockitoBean
+    private StockReservationRepository stockReservationRepository;
 
     @Test
     void contextLoads() {

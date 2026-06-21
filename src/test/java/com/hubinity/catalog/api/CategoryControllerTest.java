@@ -35,6 +35,7 @@ import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
 import com.hubinity.catalog.api.dto.CategoryTreeNode;
 import com.hubinity.catalog.api.error.CategoryHasChildrenException;
+import com.hubinity.catalog.api.error.CategoryHasProductsException;
 import com.hubinity.catalog.api.error.CategoryNotFoundException;
 import com.hubinity.catalog.api.error.CircularReferenceException;
 import com.hubinity.catalog.api.error.DuplicateSlugException;
@@ -326,6 +327,16 @@ class CategoryControllerTest {
             mockMvc.perform(delete("/api/v1/categories/{id}", id).with(admin()))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.type").value("urn:hubinity:catalog:category-has-children"));
+        }
+
+        @Test
+        void hasLinkedProducts_returns409() throws Exception {
+            UUID id = UUID.randomUUID();
+            org.mockito.Mockito.doThrow(new CategoryHasProductsException(id)).when(categoryService).delete(id);
+
+            mockMvc.perform(delete("/api/v1/categories/{id}", id).with(admin()))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.type").value("urn:hubinity:catalog:category-has-products"));
         }
 
         @Test

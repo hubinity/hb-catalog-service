@@ -84,14 +84,71 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(ProductNotFoundException.class)
+    public ProblemDetail handleProductNotFound(ProductNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Product not found");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:product-not-found"));
+        return problem;
+    }
+
+    @ExceptionHandler(DuplicateSkuException.class)
+    public ProblemDetail handleDuplicateSku(DuplicateSkuException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Duplicate SKU");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:duplicate-sku"));
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidCategoryException.class)
+    public ProblemDetail handleInvalidCategory(InvalidCategoryException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        problem.setTitle("Invalid category");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:invalid-category"));
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidPaginationException.class)
+    public ProblemDetail handleInvalidPagination(InvalidPaginationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Invalid pagination");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:invalid-pagination"));
+        return problem;
+    }
+
+    @ExceptionHandler(ProductHasStockOrReservationsException.class)
+    public ProblemDetail handleProductHasStockOrReservations(ProductHasStockOrReservationsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Product has stock or reservations");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:product-has-stock-or-reservations"));
+        return problem;
+    }
+
+    @ExceptionHandler(CategoryHasProductsException.class)
+    public ProblemDetail handleCategoryHasProducts(CategoryHasProductsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Category has products");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:category-has-products"));
+        return problem;
+    }
+
     /**
-     * Concurrency safety net: two requests can both pass the {@code existsBySlug}
-     * pre-check before either commits. The DB's partial unique index
-     * ({@code ux_category_slug_alive}) is the real source of truth — this maps the
-     * resulting constraint violation to the same duplicate-slug response.
+     * Concurrency safety net: two requests can both pass an {@code existsBySlug}/
+     * {@code existsBySku} pre-check before either commits. The DB's partial unique
+     * indexes ({@code ux_category_slug_alive}, {@code ux_product_sku_alive}) are the
+     * real source of truth — this inspects the violated constraint name to map the
+     * failure to the matching duplicate-slug or duplicate-sku response.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        String cause = String.valueOf(ex.getMostSpecificCause().getMessage());
+        if (cause.contains("ux_product_sku_alive")) {
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                    "A product with that SKU already exists.");
+            problem.setTitle("Duplicate SKU");
+            problem.setType(java.net.URI.create("urn:hubinity:catalog:duplicate-sku"));
+            return problem;
+        }
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "A category with that slug already exists.");
         problem.setTitle("Duplicate slug");
