@@ -1,0 +1,26 @@
+spring:
+  datasource:
+    url: ${HB_CATALOG_DB_URL}
+    username: ${HB_CATALOG_DB_USERNAME}
+    password: ${HB_CATALOG_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 10000
+  rabbitmq:
+    addresses: ${CLOUDAMQP_URL}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_URI}
+
+logging:
+  level:
+    root: INFO
+    com.hubinity: INFO
+    org.springframework: WARN
+
+springdoc:
+  swagger-ui:
+    enabled: false

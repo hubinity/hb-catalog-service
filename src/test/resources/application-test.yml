@@ -1,0 +1,35 @@
+# Test profile: keep the bootstrap context-load test fully offline.
+#
+# Spring Boot 4.x splits autoconfigure across feature-specific packages (e.g.
+# org.springframework.boot.jdbc.autoconfigure.*, org.springframework.boot.
+# hibernate.autoconfigure.*); the FQNs below MUST match those of the Boot
+# version pinned in pom.xml. If the build is upgraded to Boot 4.2+, re-verify
+# these names against the new jars.
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.JndiDataSourceAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.XADataSourceAutoConfiguration
+      - org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration
+      - org.springframework.boot.data.jpa.autoconfigure.DataJpaRepositoriesAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.boot.amqp.autoconfigure.RabbitAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri:
+
+management:
+  health:
+    rabbit:
+      enabled: false
+    db:
+      enabled: false
+
+springdoc:
+  swagger-ui:
+    enabled: false

@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/hb_catalog
+    username: hubinity
+    password: hubinity_local
+    driver-class-name: org.postgresql.Driver
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: hubinity
+    password: hubinity_local
+    virtual-host: /
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/hibit
+          jwk-set-uri: http://localhost:8081/realms/hibit/protocol/openid-connect/certs
+
+logging:
+  level:
+    com.hubinity: DEBUG
