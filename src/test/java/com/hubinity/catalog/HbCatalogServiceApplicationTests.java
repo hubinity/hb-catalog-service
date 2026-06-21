@@ -6,6 +6,8 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import com.hubinity.catalog.domain.CategoryRepository;
+
 @SpringBootTest
 @ActiveProfiles("test")
 class HbCatalogServiceApplicationTests {
@@ -20,6 +22,16 @@ class HbCatalogServiceApplicationTests {
      */
     @MockitoBean
     private JwtDecoder jwtDecoder;
+
+    /**
+     * {@code application-test.yml} also excludes {@code DataJpaRepositoriesAutoConfiguration}
+     * (no DataSource here either), so no real Spring Data proxy exists for
+     * {@link CategoryRepository}. {@code CategoryService} (the first real business
+     * bean wired into the full context) needs one — mocked here for the same
+     * "fully offline" reason as {@link #jwtDecoder}.
+     */
+    @MockitoBean
+    private CategoryRepository categoryRepository;
 
     @Test
     void contextLoads() {

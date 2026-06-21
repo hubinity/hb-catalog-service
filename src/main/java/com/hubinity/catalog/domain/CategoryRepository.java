@@ -23,4 +23,6 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     List<Category> findByParentIdIsNullOrderByDisplayOrderAsc();
 
     boolean existsBySlug(String slug);
+
+    boolean existsByParentId(UUID parentId);
 }
