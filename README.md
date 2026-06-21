@@ -1,4 +1,4 @@
-# hb-catalog-service (Backend) - Ecossistema Hubinity - In Progress
+# 🛒 Sistema de Catálogo de Produtos — HiBit - (Backend) - Ecossistema Hubinity - In Progress
 > Parte integrante do ecossistema distribuído Hubinity.
 
 ---
@@ -149,6 +149,7 @@ SWAGGER_ENABLED=false                                # default true em local, fa
 
 # 2. Buildar e testar este serviço
 mvn -B verify
+
 ```
 
 ### Execução Local
