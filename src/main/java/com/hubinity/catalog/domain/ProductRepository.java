@@ -29,4 +29,6 @@ public interface ProductRepository extends JpaRepository<Product, UUID>,
     Page<Product> findByNameContainingIgnoreCase(String q, Pageable pageable);
 
     boolean existsBySku(String sku);
+
+    boolean existsByCategoryId(UUID categoryId);
 }

@@ -12,6 +12,7 @@ import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
 import com.hubinity.catalog.api.dto.CategoryTreeNode;
 import com.hubinity.catalog.api.error.CategoryHasChildrenException;
+import com.hubinity.catalog.api.error.CategoryHasProductsException;
 import com.hubinity.catalog.api.error.CategoryNotFoundException;
 import com.hubinity.catalog.api.error.CircularReferenceException;
 import com.hubinity.catalog.api.error.DuplicateSlugException;
@@ -19,6 +20,7 @@ import com.hubinity.catalog.api.error.InvalidParentException;
 import com.hubinity.catalog.api.mapper.CategoryMapper;
 import com.hubinity.catalog.domain.Category;
 import com.hubinity.catalog.domain.CategoryRepository;
+import com.hubinity.catalog.domain.ProductRepository;
 
 /**
  * Business rules for {@code Category} CRUD and tree assembly that don't belong
@@ -33,10 +35,12 @@ public class CategoryService {
 
     private final CategoryRepository categories;
     private final CategoryMapper mapper;
+    private final ProductRepository products;
 
-    public CategoryService(CategoryRepository categories, CategoryMapper mapper) {
+    public CategoryService(CategoryRepository categories, CategoryMapper mapper, ProductRepository products) {
         this.categories = categories;
         this.mapper = mapper;
+        this.products = products;
     }
 
     public CategoryResponse create(CategoryRequest request) {
@@ -96,6 +100,9 @@ public class CategoryService {
         Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         if (categories.existsByParentId(id)) {
             throw new CategoryHasChildrenException(id);
+        }
+        if (products.existsByCategoryId(id)) {
+            throw new CategoryHasProductsException(id);
         }
         entity.softDelete();
         categories.save(entity);
