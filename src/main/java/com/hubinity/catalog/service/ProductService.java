@@ -1,7 +1,7 @@
 package com.hubinity.catalog.service;
 
+import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,7 +32,7 @@ import com.hubinity.catalog.domain.ProductRepository;
 import com.hubinity.catalog.domain.StockItem;
 import com.hubinity.catalog.domain.StockItemRepository;
 import com.hubinity.catalog.domain.StockReservationRepository;
-import com.hubinity.catalog.domain.StockReservationStatus;
+import com.hubinity.catalog.integration.EventPublisher;
 
 /**
  * Business rules for {@code Product} CRUD, search/pagination, price-history
@@ -49,6 +49,7 @@ public class ProductService {
     private final PriceHistoryRepository priceHistory;
     private final StockItemRepository stockItems;
     private final StockReservationRepository stockReservations;
+    private final EventPublisher eventPublisher;
 
     public ProductService(
             ProductRepository products,
@@ -56,15 +57,18 @@ public class ProductService {
             CategoryRepository categories,
             PriceHistoryRepository priceHistory,
             StockItemRepository stockItems,
-            StockReservationRepository stockReservations) {
+            StockReservationRepository stockReservations,
+            EventPublisher eventPublisher) {
         this.products = products;
         this.mapper = mapper;
         this.categories = categories;
         this.priceHistory = priceHistory;
         this.stockItems = stockItems;
         this.stockReservations = stockReservations;
+        this.eventPublisher = eventPublisher;
     }
 
+    @Transactional
     public ProductResponse create(ProductRequest request) {
         if (!categories.existsById(request.categoryId())) {
             throw new InvalidCategoryException(request.categoryId());
@@ -76,6 +80,8 @@ public class ProductService {
         Product entity = mapper.toEntity(request);
         Product saved = products.save(entity);
         priceHistory.save(new PriceHistory(saved.getId(), saved.getPrice()));
+        stockItems.save(new StockItem(saved.getId()));
+        eventPublisher.publishProductCreated(saved);
         return mapper.toResponse(saved);
     }
 
@@ -88,17 +94,15 @@ public class ProductService {
     public void delete(UUID id) {
         Product entity = products.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
 
-        Optional<StockItem> stockItem = stockItems.findByIdForUpdate(id);
-        boolean hasStock = stockItem.map(s -> s.getAvailable() + s.getReserved() > 0).orElse(false);
-        boolean hasActiveReservation = stockReservations.existsByProductIdAndStatus(id, StockReservationStatus.ACTIVE);
-        if (hasStock || hasActiveReservation) {
+        int updated = products.softDeleteIfRemovable(id);
+        if (updated == 0) {
             throw new ProductHasStockOrReservationsException(id);
         }
 
-        entity.softDelete();
-        products.save(entity);
+        eventPublisher.publishProductDeactivated(entity);
     }
 
+    @Transactional
     public ProductResponse update(UUID id, ProductRequest request) {
         Product entity = products.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
 
@@ -113,11 +117,14 @@ public class ProductService {
                 });
 
         boolean priceChanged = entity.getPrice().compareTo(request.price()) != 0;
+        BigDecimal previousPrice = entity.getPrice();
         mapper.updateEntity(entity, request);
         Product saved = products.save(entity);
         if (priceChanged) {
             priceHistory.save(new PriceHistory(saved.getId(), saved.getPrice()));
+            eventPublisher.publishPriceChanged(saved, previousPrice);
         }
+        eventPublisher.publishProductUpdated(saved);
         return mapper.toResponse(saved);
     }
 

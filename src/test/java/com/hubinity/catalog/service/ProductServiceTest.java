@@ -32,6 +32,7 @@ import com.hubinity.catalog.domain.Product;
 import com.hubinity.catalog.domain.ProductRepository;
 import com.hubinity.catalog.domain.StockItemRepository;
 import com.hubinity.catalog.domain.StockReservationRepository;
+import com.hubinity.catalog.integration.EventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ProductService")
@@ -55,11 +56,15 @@ class ProductServiceTest {
     @Mock
     private StockReservationRepository stockReservations;
 
+    @Mock
+    private EventPublisher eventPublisher;
+
     private ProductService service;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        service = new ProductService(products, mapper, categories, priceHistory, stockItems, stockReservations);
+        service = new ProductService(products, mapper, categories, priceHistory, stockItems,
+                stockReservations, eventPublisher);
     }
 
     private Product entityWithPrice(BigDecimal price) {
@@ -127,38 +132,29 @@ class ProductServiceTest {
     @DisplayName("delete")
     class Delete {
 
-        private com.hubinity.catalog.domain.StockItem stockItem(int available, int reserved) {
-            com.hubinity.catalog.domain.StockItem item = new com.hubinity.catalog.domain.StockItem();
-            item.setAvailable(available);
-            item.setReserved(reserved);
-            return item;
-        }
-
         @Test
-        @DisplayName("no stock and no active reservation soft-deletes the product")
-        void noStockNoReservation_softDeletes() {
+        @DisplayName("removable product is soft-deleted via the atomic conditional UPDATE")
+        void removable_softDeletesViaAtomicUpdate() {
             UUID id = UUID.randomUUID();
             Product existing = entityWithPrice(new BigDecimal("9.90"));
             existing.setId(id);
             when(products.findById(id)).thenReturn(Optional.of(existing));
-            when(stockItems.findByIdForUpdate(id)).thenReturn(Optional.empty());
-            when(stockReservations.existsByProductIdAndStatus(id, com.hubinity.catalog.domain.StockReservationStatus.ACTIVE))
-                    .thenReturn(false);
+            when(products.softDeleteIfRemovable(id)).thenReturn(1);
 
             service.delete(id);
 
-            assertThat(existing.getDeletedAt()).isNotNull();
-            verify(products).save(existing);
+            verify(products).softDeleteIfRemovable(id);
+            verify(products, never()).save(any());
         }
 
         @Test
-        @DisplayName("available stock greater than zero blocks removal")
-        void availableStock_blocks() {
+        @DisplayName("zero rows affected (stock, reservation, or otherwise not removable) blocks removal")
+        void notRemovable_blocks() {
             UUID id = UUID.randomUUID();
             Product existing = entityWithPrice(new BigDecimal("9.90"));
             existing.setId(id);
             when(products.findById(id)).thenReturn(Optional.of(existing));
-            when(stockItems.findByIdForUpdate(id)).thenReturn(Optional.of(stockItem(5, 0)));
+            when(products.softDeleteIfRemovable(id)).thenReturn(0);
 
             assertThatThrownBy(() -> service.delete(id))
                     .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
@@ -166,42 +162,13 @@ class ProductServiceTest {
         }
 
         @Test
-        @DisplayName("reserved stock greater than zero blocks removal")
-        void reservedStock_blocks() {
-            UUID id = UUID.randomUUID();
-            Product existing = entityWithPrice(new BigDecimal("9.90"));
-            existing.setId(id);
-            when(products.findById(id)).thenReturn(Optional.of(existing));
-            when(stockItems.findByIdForUpdate(id)).thenReturn(Optional.of(stockItem(0, 3)));
-
-            assertThatThrownBy(() -> service.delete(id))
-                    .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
-            verify(products, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("an ACTIVE reservation blocks removal even at zero stock")
-        void activeReservation_blocksEvenWithZeroStock() {
-            UUID id = UUID.randomUUID();
-            Product existing = entityWithPrice(new BigDecimal("9.90"));
-            existing.setId(id);
-            when(products.findById(id)).thenReturn(Optional.of(existing));
-            when(stockItems.findByIdForUpdate(id)).thenReturn(Optional.of(stockItem(0, 0)));
-            when(stockReservations.existsByProductIdAndStatus(id, com.hubinity.catalog.domain.StockReservationStatus.ACTIVE))
-                    .thenReturn(true);
-
-            assertThatThrownBy(() -> service.delete(id))
-                    .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
-            verify(products, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("unknown id throws ProductNotFoundException")
+        @DisplayName("unknown id throws ProductNotFoundException before attempting the update")
         void unknownId_throwsNotFound() {
             UUID id = UUID.randomUUID();
             when(products.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.delete(id)).isInstanceOf(ProductNotFoundException.class);
+            verify(products, never()).softDeleteIfRemovable(any());
         }
     }
 
