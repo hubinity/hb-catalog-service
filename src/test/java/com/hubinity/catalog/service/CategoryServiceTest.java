@@ -26,9 +26,11 @@ import com.hubinity.catalog.api.error.CategoryNotFoundException;
 import com.hubinity.catalog.api.error.CircularReferenceException;
 import com.hubinity.catalog.api.error.DuplicateSlugException;
 import com.hubinity.catalog.api.error.InvalidParentException;
+import com.hubinity.catalog.api.error.CategoryHasProductsException;
 import com.hubinity.catalog.api.mapper.CategoryMapper;
 import com.hubinity.catalog.domain.Category;
 import com.hubinity.catalog.domain.CategoryRepository;
+import com.hubinity.catalog.domain.ProductRepository;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CategoryService")
@@ -40,11 +42,14 @@ class CategoryServiceTest {
     @Mock
     private CategoryMapper mapper;
 
+    @Mock
+    private ProductRepository products;
+
     private CategoryService service;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        service = new CategoryService(categories, mapper);
+        service = new CategoryService(categories, mapper, products);
     }
 
     private Category entityWithDisplayOrder(int displayOrder) {
@@ -406,6 +411,36 @@ class CategoryServiceTest {
             when(categories.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("throws CategoryHasProductsException when a linked product exists, and never saves")
+        void hasLinkedProducts_throwsAndNeverSaves() {
+            UUID id = UUID.randomUUID();
+            Category existing = entityWithDisplayOrder(0);
+            existing.setId(id);
+            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
+            verify(categories, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("a category with neither children nor linked products still soft-deletes successfully")
+        void noChildrenNoProducts_softDeletes() {
+            UUID id = UUID.randomUUID();
+            Category existing = entityWithDisplayOrder(0);
+            existing.setId(id);
+            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(false);
+
+            service.delete(id);
+
+            assertThat(existing.getDeletedAt()).isNotNull();
+            verify(categories).save(existing);
         }
     }
 

@@ -21,4 +21,6 @@ public interface StockReservationRepository extends JpaRepository<StockReservati
     List<StockReservation> findByStatusAndExpiresAtBefore(StockReservationStatus status, Instant cutoff);
 
     Optional<StockReservation> findByExternalRef(String externalRef);
+
+    boolean existsByProductIdAndStatus(UUID productId, StockReservationStatus status);
 }

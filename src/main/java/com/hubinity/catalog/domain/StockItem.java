@@ -67,6 +67,10 @@ public class StockItem {
     public StockItem() {
     }
 
+    public StockItem(UUID productId) {
+        this.productId = productId;
+    }
+
     public UUID getProductId() {
         return productId;
     }
