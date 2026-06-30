@@ -1,15 +1,20 @@
 package com.hubinity.catalog;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import com.hubinity.catalog.domain.CategoryRepository;
+import com.hubinity.catalog.domain.IdempotencyRecordRepository;
+import com.hubinity.catalog.domain.OutboxMessageRepository;
 import com.hubinity.catalog.domain.PriceHistoryRepository;
 import com.hubinity.catalog.domain.ProductRepository;
 import com.hubinity.catalog.domain.StockItemRepository;
+import com.hubinity.catalog.domain.StockMovementRepository;
 import com.hubinity.catalog.domain.StockReservationRepository;
 
 @SpringBootTest
@@ -53,6 +58,41 @@ class HbCatalogServiceApplicationTests {
 
     @MockitoBean
     private StockReservationRepository stockReservationRepository;
+
+    /**
+     * {@code StockService}/{@code StockController} (003-stock-movement-reservation) need two
+     * more JPA repositories that don't exist in this offline context, for the same reason as
+     * {@link #categoryRepository} above.
+     */
+    @MockitoBean
+    private StockMovementRepository stockMovementRepository;
+
+    @MockitoBean
+    private IdempotencyRecordRepository idempotencyRecordRepository;
+
+    /**
+     * {@code OutboxMessageRepository} não existe neste contexto offline
+     * (DataJpaRepositoriesAutoConfiguration excluído). {@code DefaultEventPublisher}
+     * precisa dele — mockado aqui pelo mesmo motivo dos demais repositories acima.
+     */
+    @MockitoBean
+    private OutboxMessageRepository outboxMessageRepository;
+
+    /**
+     * {@code RabbitConfig} é condicional em {@code spring.rabbitmq.host} (não definido
+     * no perfil test). {@code OutboxDispatcher} e {@code DefaultEventPublisher} precisam
+     * de {@code RabbitTemplate} — este mock satisfaz a injeção sem broker real.
+     */
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
+
+    /**
+     * {@code HibernateJpaAutoConfiguration} é excluído no perfil test (sem DataSource),
+     * portanto nenhum {@code PlatformTransactionManager} é auto-configurado.
+     * {@code OutboxDispatcher} precisa dele para construir o {@code TransactionTemplate}.
+     */
+    @MockitoBean
+    private PlatformTransactionManager platformTransactionManager;
 
     @Test
     void contextLoads() {
