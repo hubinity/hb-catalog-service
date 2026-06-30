@@ -3,6 +3,8 @@ package com.hubinity.catalog.api.error;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -25,6 +27,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  */
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
@@ -132,12 +136,58 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(InsufficientStockException.class)
+    public ProblemDetail handleInsufficientStock(InsufficientStockException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Insufficient stock");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:insufficient-stock"));
+        return problem;
+    }
+
+    @ExceptionHandler(ReservationNotFoundException.class)
+    public ProblemDetail handleReservationNotFound(ReservationNotFoundException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+        problem.setTitle("Reservation not found");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:reservation-not-found"));
+        return problem;
+    }
+
+    @ExceptionHandler(ReservationNotActiveException.class)
+    public ProblemDetail handleReservationNotActive(ReservationNotActiveException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Reservation not active");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:reservation-not-active"));
+        return problem;
+    }
+
+    @ExceptionHandler(ReservationExpiredException.class)
+    public ProblemDetail handleReservationExpired(ReservationExpiredException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
+        problem.setTitle("Reservation expired");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:reservation-expired"));
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidStockMovementTypeException.class)
+    public ProblemDetail handleInvalidStockMovementType(InvalidStockMovementTypeException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Invalid stock movement type");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:invalid-stock-movement-type"));
+        return problem;
+    }
+
     /**
      * Concurrency safety net: two requests can both pass an {@code existsBySlug}/
      * {@code existsBySku} pre-check before either commits. The DB's partial unique
      * indexes ({@code ux_category_slug_alive}, {@code ux_product_sku_alive}) are the
      * real source of truth — this inspects the violated constraint name to map the
      * failure to the matching duplicate-slug or duplicate-sku response.
+     *
+     * <p>Any other {@code DataIntegrityViolationException} (a NOT NULL violation, the
+     * {@code price_history} FK {@code ON DELETE RESTRICT}, a future check-constraint
+     * failure, etc.) does NOT match either known constraint name and must not be
+     * mislabeled as a duplicate-slug conflict — it falls through to a generic 500
+     * with a non-leaking detail. The raw exception message is logged server-side only.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
@@ -149,10 +199,18 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             problem.setType(java.net.URI.create("urn:hubinity:catalog:duplicate-sku"));
             return problem;
         }
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
-                "A category with that slug already exists.");
-        problem.setTitle("Duplicate slug");
-        problem.setType(java.net.URI.create("urn:hubinity:catalog:duplicate-slug"));
+        if (cause.contains("ux_category_slug_alive")) {
+            ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
+                    "A category with that slug already exists.");
+            problem.setTitle("Duplicate slug");
+            problem.setType(java.net.URI.create("urn:hubinity:catalog:duplicate-slug"));
+            return problem;
+        }
+        log.error("Unmapped DataIntegrityViolationException (constraint not recognized): {}", cause, ex);
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR,
+                "A data integrity constraint was violated.");
+        problem.setTitle("Data integrity violation");
+        problem.setType(java.net.URI.create("urn:hubinity:catalog:data-integrity-violation"));
         return problem;
     }
 }

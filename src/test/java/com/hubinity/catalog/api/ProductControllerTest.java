@@ -155,6 +155,22 @@ class ProductControllerTest {
                             .content(json(validRequest(categoryId))))
                     .andExpect(status().isUnauthorized());
         }
+
+        @Test
+        void dataIntegrityViolationMatchingNeitherKnownConstraint_returns500NotMislabeledAsDuplicateSlug()
+                throws Exception {
+            UUID categoryId = UUID.randomUUID();
+            org.springframework.dao.DataIntegrityViolationException unmatched =
+                    new org.springframework.dao.DataIntegrityViolationException(
+                            "ERROR: null value in column \"price\" violates not-null constraint");
+            when(productService.create(any())).thenThrow(unmatched);
+
+            mockMvc.perform(post("/api/v1/products").with(admin())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(validRequest(categoryId))))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.not(containsString("slug"))));
+        }
     }
 
     @Nested
