@@ -70,7 +70,12 @@ public class ProductService {
 
     @Transactional
     public ProductResponse create(ProductRequest request) {
-        if (!categories.existsById(request.categoryId())) {
+        // Locking liveness check (not a plain SELECT): holds the category's
+        // row lock until this transaction commits, so a concurrent category
+        // soft-delete (CategoryRepository#softDeleteIfRemovable) serializes
+        // against this create instead of racing it — the FK's own KEY SHARE
+        // check does not conflict with the soft-delete's row lock.
+        if (categories.touchIfAlive(request.categoryId()) == 0) {
             throw new InvalidCategoryException(request.categoryId());
         }
         if (products.existsBySku(request.sku())) {
