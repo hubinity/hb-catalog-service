@@ -89,7 +89,7 @@ class CategoryServiceTest {
         void underExistingParent_assignsNextSiblingPosition() {
             UUID parentId = UUID.randomUUID();
             CategoryRequest req = new CategoryRequest("Phones", "phones", parentId, null, null);
-            when(categories.existsById(parentId)).thenReturn(true);
+            when(categories.touchIfAlive(parentId)).thenReturn(1);
             when(categories.existsBySlug("phones")).thenReturn(false);
             when(categories.findByParentIdOrderByDisplayOrderAsc(parentId))
                     .thenReturn(List.of(entityWithDisplayOrder(0), entityWithDisplayOrder(1)));
@@ -141,7 +141,7 @@ class CategoryServiceTest {
         void unknownParent_throws() {
             UUID parentId = UUID.randomUUID();
             CategoryRequest req = new CategoryRequest("Phones", "phones", parentId, null, null);
-            when(categories.existsById(parentId)).thenReturn(false);
+            when(categories.touchIfAlive(parentId)).thenReturn(0);
 
             assertThatThrownBy(() -> service.create(req)).isInstanceOf(InvalidParentException.class);
             verify(categories, never()).save(any());
@@ -181,7 +181,7 @@ class CategoryServiceTest {
             existing.setSlug("phones");
             CategoryRequest req = new CategoryRequest("Phones", "phones", newParentId, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(newParentId)).thenReturn(true);
+            when(categories.touchIfAlive(newParentId)).thenReturn(1);
             when(categories.findById(newParentId)).thenReturn(Optional.of(entityWithDisplayOrder(0)));
             when(categories.save(existing)).thenReturn(existing);
             when(mapper.toResponse(existing)).thenReturn(
@@ -201,7 +201,7 @@ class CategoryServiceTest {
             existing.setSlug("electronics");
             CategoryRequest req = new CategoryRequest("Electronics", "electronics", id, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(id)).thenReturn(true);
+            when(categories.touchIfAlive(id)).thenReturn(1);
 
             assertThatThrownBy(() -> service.update(id, req)).isInstanceOf(CircularReferenceException.class);
             verify(categories, never()).save(any());
@@ -220,7 +220,7 @@ class CategoryServiceTest {
             child.setParentId(id);
             CategoryRequest req = new CategoryRequest("Electronics", "electronics", childId, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(childId)).thenReturn(true);
+            when(categories.touchIfAlive(childId)).thenReturn(1);
             when(categories.findById(childId)).thenReturn(Optional.of(child));
 
             assertThatThrownBy(() -> service.update(id, req)).isInstanceOf(CircularReferenceException.class);

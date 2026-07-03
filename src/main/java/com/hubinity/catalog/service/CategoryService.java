@@ -46,7 +46,13 @@ public class CategoryService {
 
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
-        if (request.parentId() != null && !categories.existsById(request.parentId())) {
+        // Locking liveness check on the parent (not a plain SELECT): holds the
+        // parent's row lock until this transaction commits, so a concurrent
+        // parent soft-delete (CategoryRepository#softDeleteIfRemovable, whose
+        // guard rejects alive subcategories) serializes against this create
+        // instead of racing it — the FK's own KEY SHARE check does not conflict
+        // with the soft-delete's row lock. Symmetric to ProductService#create.
+        if (request.parentId() != null && categories.touchIfAlive(request.parentId()) == 0) {
             throw new InvalidParentException(request.parentId());
         }
         if (categories.existsBySlug(request.slug())) {
@@ -73,7 +79,11 @@ public class CategoryService {
         Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
 
         if (request.parentId() != null) {
-            if (!categories.existsById(request.parentId())) {
+            // Same locking liveness check as create(): re-parenting makes this
+            // category a child of request.parentId(), so it must serialize
+            // against a concurrent delete of that new parent to avoid leaving an
+            // alive child pointing at a soft-deleted parent.
+            if (categories.touchIfAlive(request.parentId()) == 0) {
                 throw new InvalidParentException(request.parentId());
             }
             assertNoCycle(id, request.parentId());

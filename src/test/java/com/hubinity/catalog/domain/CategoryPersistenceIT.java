@@ -321,4 +321,127 @@ class CategoryPersistenceIT {
                     .isTrue();
         }
     }
+
+    @Test
+    @DisplayName("delete racing a concurrent subcategory create never leaves an alive child on a soft-deleted category")
+    void delete_racing_subcategory_create_never_leaves_orphan_child() throws Exception {
+        for (int iteration = 0; iteration < 10; iteration++) {
+            String prefix = "childrace-" + UUID.randomUUID();
+            UUID parentId = categoryService.create(
+                    new CategoryRequest("Parent", prefix, null, null, null)).id();
+            String childSlug = prefix + "-child";
+
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+
+            Future<Boolean> deleteWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.delete(parentId);
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the concurrent create linked a child first
+                    // (CategoryHasChildrenException)
+                    return false;
+                }
+            });
+            Future<Boolean> createWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.create(new CategoryRequest("Child", childSlug, parentId, null, null));
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the parent was already soft-deleted
+                    // (InvalidParentException)
+                    return false;
+                }
+            });
+
+            ready.await();
+            go.countDown();
+            boolean deleted = deleteWon.get();
+            boolean created = createWon.get();
+            pool.shutdown();
+
+            // Both finders are alive-scoped by @SQLRestriction("deleted_at IS NULL").
+            boolean parentAlive = categories.findById(parentId).isPresent();
+            boolean childAlive = categories.findBySlug(childSlug).isPresent();
+
+            // Invariant: an alive subcategory must NEVER reference a soft-deleted parent.
+            assertThat(childAlive && !parentAlive)
+                    .as("iteration %d (deleteWon=%s, createWon=%s, parentAlive=%s, childAlive=%s): "
+                                    + "alive child referencing a soft-deleted parent",
+                            iteration, deleted, created, parentAlive, childAlive)
+                    .isFalse();
+            assertThat(deleted || created)
+                    .as("iteration %d: at least one of delete/create must succeed", iteration)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("delete racing a concurrent re-parent never leaves an alive child on a soft-deleted category")
+    void delete_racing_reparent_never_leaves_orphan_child() throws Exception {
+        for (int iteration = 0; iteration < 10; iteration++) {
+            String prefix = "reparentrace-" + UUID.randomUUID();
+            UUID parentId = categoryService.create(
+                    new CategoryRequest("Parent", prefix + "-parent", null, null, null)).id();
+            String childSlug = prefix + "-child";
+            UUID childId = categoryService.create(
+                    new CategoryRequest("Child", childSlug, null, null, null)).id();
+
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+
+            Future<Boolean> deleteWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.delete(parentId);
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the concurrent re-parent linked the child first
+                    // (CategoryHasChildrenException)
+                    return false;
+                }
+            });
+            Future<Boolean> reparentWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.update(childId, new CategoryRequest("Child", childSlug, parentId, null, null));
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the parent was already soft-deleted
+                    // (InvalidParentException)
+                    return false;
+                }
+            });
+
+            ready.await();
+            go.countDown();
+            boolean deleted = deleteWon.get();
+            boolean reparented = reparentWon.get();
+            pool.shutdown();
+
+            boolean parentAlive = categories.findById(parentId).isPresent();
+            boolean childPointsToParent = categories.findById(childId)
+                    .map(c -> parentId.equals(c.getParentId()))
+                    .orElse(false);
+
+            // Invariant: a child linked to the parent must NEVER coexist with a soft-deleted parent.
+            assertThat(childPointsToParent && !parentAlive)
+                    .as("iteration %d (deleteWon=%s, reparentWon=%s, parentAlive=%s, childPointsToParent=%s): "
+                                    + "alive child referencing a soft-deleted parent",
+                            iteration, deleted, reparented, parentAlive, childPointsToParent)
+                    .isFalse();
+            assertThat(deleted || reparented)
+                    .as("iteration %d: at least one of delete/re-parent must succeed", iteration)
+                    .isTrue();
+        }
+    }
 }
