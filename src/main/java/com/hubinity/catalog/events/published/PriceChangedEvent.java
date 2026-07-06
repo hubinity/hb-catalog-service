@@ -7,7 +7,16 @@ import java.util.UUID;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+/**
+ * Payload de {@code catalog.price.changed} — espelha
+ * {@code contracts-events/events/v1/PriceChanged.schema.json}.
+ *
+ * @param eventId       = messageId do outbox; chave de deduplicação at-least-once
+ * @param schemaVersion versão SemVer do contrato (ADR 0005/0007)
+ */
 public record PriceChangedEvent(
+        @NotNull UUID eventId,
+        @NotBlank String schemaVersion,
         @NotNull UUID productId,
         @NotBlank String sku,
         @NotNull BigDecimal previousPrice,

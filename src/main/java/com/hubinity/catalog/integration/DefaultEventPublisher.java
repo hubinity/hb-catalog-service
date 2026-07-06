@@ -29,13 +29,26 @@ import com.hubinity.catalog.events.published.StockChangedEvent;
  * em lotes PENDING e publica no exchange {@code catalog.events}.
  *
  * <p>Se o negócio fizer rollback, o evento também é desfeito atomicamente.
- * A entrega é at-least-once — consumers DEVEM deduplicar por {@code messageId}.
+ * A entrega é at-least-once — consumers DEVEM deduplicar por {@code messageId}
+ * (= {@code eventId} do payload).
+ *
+ * <p>Os records em {@code events.published} espelham os schemas em
+ * {@code platform-shared-contracts/contracts-events/events/v1/}.
+ * TODO(contracts): migrar para os POJOs gerados por jsonschema2pojo quando o
+ * contracts-events emitir anotações Jackson 3 ({@code tools.jackson}) e mapear
+ * {@code date-time} para {@code Instant} — hoje o gerador produz Jackson 2
+ * ({@code com.fasterxml}) e {@code Date}, o que exigiria conversores no catalog.
  */
 @Service
 public class DefaultEventPublisher implements EventPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultEventPublisher.class);
 
+    /**
+     * Mantido em 1.0.0: a reconciliação schema↔payload é correção in-place pré-GA
+     * (contracts 0.1.0-SNAPSHOT sem consumidores — ADR 0005/0006); breaking real
+     * exigiria novo path {@code events/v2/} (ADR 0007).
+     */
     static final String SCHEMA_VERSION = "1.0.0";
 
     private final OutboxMessageRepository outboxMessages;
@@ -49,33 +62,42 @@ public class DefaultEventPublisher implements EventPublisher {
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void publishProductCreated(Product product) {
+        UUID eventId = UUID.randomUUID();
         var event = new ProductCreatedEvent(
+                eventId, SCHEMA_VERSION,
                 product.getId(), product.getSku(), product.getName(),
                 product.getPrice(), product.getCategoryId(), product.isActive(), Instant.now());
-        persist(CatalogEvent.PRODUCT_CREATED, product.getId().toString(), event);
+        persist(CatalogEvent.PRODUCT_CREATED, product.getId().toString(), eventId, event);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void publishProductUpdated(Product product) {
+        UUID eventId = UUID.randomUUID();
         var event = new ProductUpdatedEvent(
+                eventId, SCHEMA_VERSION,
                 product.getId(), product.getSku(), product.getName(),
                 product.getPrice(), product.getCategoryId(), product.isActive(), Instant.now());
-        persist(CatalogEvent.PRODUCT_UPDATED, product.getId().toString(), event);
+        persist(CatalogEvent.PRODUCT_UPDATED, product.getId().toString(), eventId, event);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void publishProductDeactivated(Product product) {
-        var event = new ProductDeactivatedEvent(product.getId(), product.getSku(), Instant.now());
-        persist(CatalogEvent.PRODUCT_DEACTIVATED, product.getId().toString(), event);
+        UUID eventId = UUID.randomUUID();
+        var event = new ProductDeactivatedEvent(
+                eventId, SCHEMA_VERSION, product.getId(), product.getSku(), Instant.now());
+        persist(CatalogEvent.PRODUCT_DEACTIVATED, product.getId().toString(), eventId, event);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void publishStockChanged(UUID productId, int available, int reserved,
                                     StockMovementType changeType, int quantity, Instant occurredAt) {
+        UUID eventId = UUID.randomUUID();
         var event = new StockChangedEvent(
+                eventId,
+                SCHEMA_VERSION,
                 productId,
                 previousAvailable(changeType, available, quantity),
                 previousReserved(changeType, reserved, quantity),
@@ -84,22 +106,29 @@ public class DefaultEventPublisher implements EventPublisher {
                 changeType,
                 quantity,
                 occurredAt);
-        persist(CatalogEvent.STOCK_CHANGED, productId.toString(), event);
+        persist(CatalogEvent.STOCK_CHANGED, productId.toString(), eventId, event);
     }
 
     @Override
     @Transactional(propagation = Propagation.REQUIRED)
     public void publishPriceChanged(Product product, BigDecimal previousPrice) {
+        UUID eventId = UUID.randomUUID();
         var event = new PriceChangedEvent(
+                eventId, SCHEMA_VERSION,
                 product.getId(), product.getSku(), previousPrice, product.getPrice(), Instant.now());
-        persist(CatalogEvent.PRICE_CHANGED, product.getId().toString(), event);
+        persist(CatalogEvent.PRICE_CHANGED, product.getId().toString(), eventId, event);
     }
 
-    private void persist(CatalogEvent catalogEvent, String aggregateId, Object payload) {
+    /**
+     * @param eventId identificador do evento — usado como {@code messageId} do outbox
+     *                E como campo {@code eventId} do payload, garantindo que a chave
+     *                de deduplicação seja a mesma no header AMQP e no corpo.
+     */
+    private void persist(CatalogEvent catalogEvent, String aggregateId, UUID eventId, Object payload) {
         try {
             String json = jsonMapper.writeValueAsString(payload);
             OutboxMessage msg = new OutboxMessage(
-                    UUID.randomUUID(),
+                    eventId,
                     catalogEvent.aggregateType,
                     aggregateId,
                     catalogEvent.eventType,
