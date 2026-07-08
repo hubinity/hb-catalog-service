@@ -7,6 +7,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
@@ -43,8 +44,15 @@ public class CategoryService {
         this.products = products;
     }
 
+    @Transactional
     public CategoryResponse create(CategoryRequest request) {
-        if (request.parentId() != null && !categories.existsById(request.parentId())) {
+        // Locking liveness check on the parent (not a plain SELECT): holds the
+        // parent's row lock until this transaction commits, so a concurrent
+        // parent soft-delete (CategoryRepository#softDeleteIfRemovable, whose
+        // guard rejects alive subcategories) serializes against this create
+        // instead of racing it — the FK's own KEY SHARE check does not conflict
+        // with the soft-delete's row lock. Symmetric to ProductService#create.
+        if (request.parentId() != null && categories.touchIfAlive(request.parentId()) == 0) {
             throw new InvalidParentException(request.parentId());
         }
         if (categories.existsBySlug(request.slug())) {
@@ -60,16 +68,22 @@ public class CategoryService {
         return mapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public CategoryResponse getById(UUID id) {
         Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         return mapper.toResponse(entity);
     }
 
+    @Transactional
     public CategoryResponse update(UUID id, CategoryRequest request) {
         Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
 
         if (request.parentId() != null) {
-            if (!categories.existsById(request.parentId())) {
+            // Same locking liveness check as create(): re-parenting makes this
+            // category a child of request.parentId(), so it must serialize
+            // against a concurrent delete of that new parent to avoid leaving an
+            // alive child pointing at a soft-deleted parent.
+            if (categories.touchIfAlive(request.parentId()) == 0) {
                 throw new InvalidParentException(request.parentId());
             }
             assertNoCycle(id, request.parentId());
@@ -96,8 +110,30 @@ public class CategoryService {
         }
     }
 
+    /**
+     * Act first, diagnose after: the atomic conditional {@code UPDATE} is the
+     * single authoritative guard-and-action ({@link
+     * CategoryRepository#softDeleteIfRemovable}); the follow-up reads only
+     * pick the right ProblemDetail when it reports 0 rows.
+     */
+    @Transactional
     public void delete(UUID id) {
-        Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        if (categories.softDeleteIfRemovable(id) == 1) {
+            // Fresh-snapshot re-check: if the UPDATE above was blocked by a
+            // concurrent create holding the category row lock (touchIfAlive),
+            // that create has committed by now but was invisible to the
+            // UPDATE's own statement snapshot (EvalPlanQual re-checks only the
+            // target row, not the NOT EXISTS subqueries). Throwing here rolls
+            // the soft delete back.
+            if (categories.existsByParentId(id)) {
+                throw new CategoryHasChildrenException(id);
+            }
+            if (products.existsByCategoryId(id)) {
+                throw new CategoryHasProductsException(id);
+            }
+            return;
+        }
+        categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         if (categories.existsByParentId(id)) {
             throw new CategoryHasChildrenException(id);
         }
@@ -108,10 +144,12 @@ public class CategoryService {
         categories.save(entity);
     }
 
+    @Transactional(readOnly = true)
     public List<CategoryResponse> listFlat() {
         return categories.findAll().stream().map(mapper::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
     public List<CategoryTreeNode> listTree() {
         Map<UUID, List<Category>> byParent = categories.findAll().stream()
                 .collect(Collectors.groupingBy(c -> c.getParentId() == null ? ROOT : c.getParentId()));

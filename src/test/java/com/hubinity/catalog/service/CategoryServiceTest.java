@@ -89,7 +89,7 @@ class CategoryServiceTest {
         void underExistingParent_assignsNextSiblingPosition() {
             UUID parentId = UUID.randomUUID();
             CategoryRequest req = new CategoryRequest("Phones", "phones", parentId, null, null);
-            when(categories.existsById(parentId)).thenReturn(true);
+            when(categories.touchIfAlive(parentId)).thenReturn(1);
             when(categories.existsBySlug("phones")).thenReturn(false);
             when(categories.findByParentIdOrderByDisplayOrderAsc(parentId))
                     .thenReturn(List.of(entityWithDisplayOrder(0), entityWithDisplayOrder(1)));
@@ -141,7 +141,7 @@ class CategoryServiceTest {
         void unknownParent_throws() {
             UUID parentId = UUID.randomUUID();
             CategoryRequest req = new CategoryRequest("Phones", "phones", parentId, null, null);
-            when(categories.existsById(parentId)).thenReturn(false);
+            when(categories.touchIfAlive(parentId)).thenReturn(0);
 
             assertThatThrownBy(() -> service.create(req)).isInstanceOf(InvalidParentException.class);
             verify(categories, never()).save(any());
@@ -181,7 +181,7 @@ class CategoryServiceTest {
             existing.setSlug("phones");
             CategoryRequest req = new CategoryRequest("Phones", "phones", newParentId, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(newParentId)).thenReturn(true);
+            when(categories.touchIfAlive(newParentId)).thenReturn(1);
             when(categories.findById(newParentId)).thenReturn(Optional.of(entityWithDisplayOrder(0)));
             when(categories.save(existing)).thenReturn(existing);
             when(mapper.toResponse(existing)).thenReturn(
@@ -201,7 +201,7 @@ class CategoryServiceTest {
             existing.setSlug("electronics");
             CategoryRequest req = new CategoryRequest("Electronics", "electronics", id, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(id)).thenReturn(true);
+            when(categories.touchIfAlive(id)).thenReturn(1);
 
             assertThatThrownBy(() -> service.update(id, req)).isInstanceOf(CircularReferenceException.class);
             verify(categories, never()).save(any());
@@ -220,7 +220,7 @@ class CategoryServiceTest {
             child.setParentId(id);
             CategoryRequest req = new CategoryRequest("Electronics", "electronics", childId, null, null);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
-            when(categories.existsById(childId)).thenReturn(true);
+            when(categories.touchIfAlive(childId)).thenReturn(1);
             when(categories.findById(childId)).thenReturn(Optional.of(child));
 
             assertThatThrownBy(() -> service.update(id, req)).isInstanceOf(CircularReferenceException.class);
@@ -377,26 +377,61 @@ class CategoryServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("soft-deletes a childless category")
-        void noChildren_softDeletes() {
+        @DisplayName("atomic conditional soft-delete affecting 1 row re-verifies with fresh reads and completes")
+        void removable_softDeletesAtomically_thenReverifies() {
             UUID id = UUID.randomUUID();
-            Category existing = entityWithDisplayOrder(0);
-            existing.setId(id);
-            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.softDeleteIfRemovable(id)).thenReturn(1);
             when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(false);
 
             service.delete(id);
 
-            assertThat(existing.getDeletedAt()).isNotNull();
-            verify(categories).save(existing);
+            verify(categories).softDeleteIfRemovable(id);
+            verify(categories, never()).findById(any());
+            verify(categories, never()).save(any());
         }
 
         @Test
-        @DisplayName("throws CategoryHasChildrenException when a child exists, and never saves")
-        void hasChildren_throwsAndNeverSaves() {
+        @DisplayName("1 row affected but post-verification finds a concurrent child throws CategoryHasChildrenException")
+        void oneRow_postVerifyFindsChild_throwsToRollBack() {
+            UUID id = UUID.randomUUID();
+            when(categories.softDeleteIfRemovable(id)).thenReturn(1);
+            when(categories.existsByParentId(id)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasChildrenException.class);
+            verify(categories, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("1 row affected but post-verification finds a concurrent product throws CategoryHasProductsException")
+        void oneRow_postVerifyFindsProduct_throwsToRollBack() {
+            UUID id = UUID.randomUUID();
+            when(categories.softDeleteIfRemovable(id)).thenReturn(1);
+            when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
+            verify(categories, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("0 rows affected and category absent throws CategoryNotFoundException")
+        void zeroRows_categoryMissing_throwsNotFound() {
+            UUID id = UUID.randomUUID();
+            when(categories.softDeleteIfRemovable(id)).thenReturn(0);
+            when(categories.findById(id)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryNotFoundException.class);
+            verify(categories, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("0 rows affected and an alive category with children throws CategoryHasChildrenException")
+        void zeroRows_hasChildren_throws() {
             UUID id = UUID.randomUUID();
             Category existing = entityWithDisplayOrder(0);
             existing.setId(id);
+            when(categories.softDeleteIfRemovable(id)).thenReturn(0);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
             when(categories.existsByParentId(id)).thenReturn(true);
 
@@ -405,12 +440,17 @@ class CategoryServiceTest {
         }
 
         @Test
-        @DisplayName("unknown id throws CategoryNotFoundException")
-        void unknownId_throwsNotFound() {
+        @DisplayName("0 rows affected and an alive category without children throws CategoryHasProductsException")
+        void zeroRows_noChildren_throwsHasProducts() {
             UUID id = UUID.randomUUID();
-            when(categories.findById(id)).thenReturn(Optional.empty());
+            Category existing = entityWithDisplayOrder(0);
+            existing.setId(id);
+            when(categories.softDeleteIfRemovable(id)).thenReturn(0);
+            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.existsByParentId(id)).thenReturn(false);
 
-            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryNotFoundException.class);
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
+            verify(categories, never()).save(any());
         }
 
         @Test

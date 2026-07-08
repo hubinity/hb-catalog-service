@@ -83,7 +83,7 @@ class ProductServiceTest {
             UUID categoryId = UUID.randomUUID();
             ProductRequest req = new ProductRequest(
                     "SKU-001", "Widget", null, new BigDecimal("9.90"), null, categoryId, null, null);
-            when(categories.existsById(categoryId)).thenReturn(true);
+            when(categories.touchIfAlive(categoryId)).thenReturn(1);
             when(products.existsBySku("SKU-001")).thenReturn(false);
             Product mapped = entityWithPrice(new BigDecimal("9.90"));
             when(mapper.toEntity(req)).thenReturn(mapped);
@@ -108,7 +108,7 @@ class ProductServiceTest {
             UUID categoryId = UUID.randomUUID();
             ProductRequest req = new ProductRequest(
                     "SKU-001", "Widget", null, new BigDecimal("9.90"), null, categoryId, null, null);
-            when(categories.existsById(categoryId)).thenReturn(true);
+            when(categories.touchIfAlive(categoryId)).thenReturn(1);
             when(products.existsBySku("SKU-001")).thenReturn(true);
 
             assertThatThrownBy(() -> service.create(req)).isInstanceOf(DuplicateSkuException.class);
@@ -121,7 +121,7 @@ class ProductServiceTest {
             UUID categoryId = UUID.randomUUID();
             ProductRequest req = new ProductRequest(
                     "SKU-001", "Widget", null, new BigDecimal("9.90"), null, categoryId, null, null);
-            when(categories.existsById(categoryId)).thenReturn(false);
+            when(categories.touchIfAlive(categoryId)).thenReturn(0);
 
             assertThatThrownBy(() -> service.create(req)).isInstanceOf(InvalidCategoryException.class);
             verify(products, never()).save(any());

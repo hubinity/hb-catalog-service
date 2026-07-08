@@ -31,29 +31,29 @@ import org.springframework.stereotype.Repository;
 public interface StockItemRepository extends JpaRepository<StockItem, UUID> {
 
     /** IN movement — always succeeds if the row exists. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE StockItem s SET s.available = s.available + :qty WHERE s.productId = :productId")
     int increaseAvailable(UUID productId, int qty);
 
     /** OUT movement — 0 rows affected means insufficient {@code available}. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE StockItem s SET s.available = s.available - :qty WHERE s.productId = :productId AND s.available >= :qty")
     int decreaseAvailableIfSufficient(UUID productId, int qty);
 
     /** Reserve (FR-005) — 0 rows affected means insufficient {@code available}. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE StockItem s SET s.available = s.available - :qty, s.reserved = s.reserved + :qty "
          + "WHERE s.productId = :productId AND s.available >= :qty")
     int reserveIfAvailable(UUID productId, int qty);
 
     /** Release a reservation, or return its quantity on expiry — shared by both paths. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE StockItem s SET s.available = s.available + :qty, s.reserved = s.reserved - :qty "
          + "WHERE s.productId = :productId AND s.reserved >= :qty")
     int releaseReservedToAvailable(UUID productId, int qty);
 
     /** Commit a reservation — permanently deducts the held quantity from {@code reserved} only. */
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Query("UPDATE StockItem s SET s.reserved = s.reserved - :qty WHERE s.productId = :productId AND s.reserved >= :qty")
     int commitReserved(UUID productId, int qty);
 }

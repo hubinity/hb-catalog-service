@@ -18,6 +18,10 @@ spring:
     baseline-on-migrate: true
     schemas: public
   rabbitmq:
+    # publisher-confirm-type: CORRELATED habilita ConfirmCallback assíncrono no RabbitTemplate.
+    # O Outbox cuida do retry — confirms são para observabilidade de NACKs do broker.
+    publisher-confirm-type: correlated
+    publisher-returns: true
     listener:
       simple:
         retry:
@@ -81,3 +85,11 @@ app:
       client-id: ${HB_CATALOG_KEYCLOAK_CLIENT_ID:hb-catalog-service}
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:4200,http://localhost:4201,http://localhost:4202,http://localhost:4203}
+  outbox:
+    dispatch:
+      # Intervalo entre fim de um ciclo e início do próximo (fixedDelay)
+      delay-ms:     ${APP_OUTBOX_DISPATCH_DELAY_MS:5000}
+      # Número máximo de mensagens por batch (TX curta por batch via TransactionTemplate)
+      batch-size:   ${APP_OUTBOX_DISPATCH_BATCH_SIZE:50}
+      # Após N falhas consecutivas, a mensagem é marcada FAILED e enviada ao DLQ
+      max-attempts: ${APP_OUTBOX_DISPATCH_MAX_ATTEMPTS:5}

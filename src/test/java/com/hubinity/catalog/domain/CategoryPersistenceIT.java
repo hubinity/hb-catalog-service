@@ -3,6 +3,7 @@ package com.hubinity.catalog.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -31,9 +32,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
 import com.hubinity.catalog.api.dto.CategoryTreeNode;
+import com.hubinity.catalog.api.dto.ProductRequest;
+import com.hubinity.catalog.api.dto.ProductResponse;
 import com.hubinity.catalog.api.error.CategoryHasChildrenException;
 import com.hubinity.catalog.api.error.CircularReferenceException;
 import com.hubinity.catalog.service.CategoryService;
+import com.hubinity.catalog.service.ProductService;
 
 /**
  * Verifies {@code Category} CRUD persistence against a real Postgres 16 container,
@@ -74,7 +78,13 @@ class CategoryPersistenceIT {
     private CategoryService categoryService;
 
     @Autowired
+    private ProductService productService;
+
+    @Autowired
     private CategoryRepository categories;
+
+    @Autowired
+    private ProductRepository products;
 
     @Test
     @DisplayName("create then fetch by id returns every submitted field")
@@ -228,5 +238,210 @@ class CategoryPersistenceIT {
 
         assertThat(categoryService.listFlat()).noneMatch(r -> r.id().equals(parent.id()) || r.id().equals(child.id()));
         assertThat(categoryService.listTree()).noneMatch(n -> n.id().equals(parent.id()));
+    }
+
+    @Test
+    @DisplayName("soft-deleted subcategories and products do not block delete — the removal guard scopes to alive rows")
+    void soft_deleted_children_and_products_do_not_block_delete() {
+        String prefix = "aliveguard-" + UUID.randomUUID();
+        UUID parentId = categoryService.create(
+                new CategoryRequest("Parent", prefix + "-parent", null, null, null)).id();
+        UUID childId = categoryService.create(
+                new CategoryRequest("Child", prefix + "-child", parentId, null, null)).id();
+        ProductResponse product = productService.create(new ProductRequest(
+                prefix + "-SKU", "Guard", null, new BigDecimal("9.90"), null, parentId, null, null));
+
+        productService.delete(product.id());
+        categoryService.delete(childId);
+
+        categoryService.delete(parentId);
+
+        assertThat(categories.findById(parentId)).isEmpty();
+        assertThat(categoryService.listFlat()).noneMatch(r -> r.id().equals(parentId));
+    }
+
+    @Test
+    @DisplayName("delete racing a concurrent product create never leaves an alive product on a soft-deleted category")
+    void delete_racing_product_create_never_leaves_orphan_product() throws Exception {
+        for (int iteration = 0; iteration < 10; iteration++) {
+            String prefix = "delrace-" + UUID.randomUUID();
+            UUID categoryId = categoryService.create(
+                    new CategoryRequest("Race", prefix, null, null, null)).id();
+            String sku = prefix + "-SKU";
+
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+
+            Future<Boolean> deleteWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.delete(categoryId);
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the concurrent create linked a product first
+                    // (CategoryHasProductsException)
+                    return false;
+                }
+            });
+            Future<Boolean> createWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    productService.create(new ProductRequest(
+                            sku, "Race Product", null, new BigDecimal("9.90"), null, categoryId, null, null));
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the category was already soft-deleted
+                    // (InvalidCategoryException / DataIntegrityViolationException)
+                    return false;
+                }
+            });
+
+            ready.await();
+            go.countDown();
+            boolean deleted = deleteWon.get();
+            boolean created = createWon.get();
+            pool.shutdown();
+
+            // Both finders are alive-scoped by @SQLRestriction("deleted_at IS NULL").
+            boolean categoryAlive = categories.findById(categoryId).isPresent();
+            boolean productAlive = products.findBySku(sku).isPresent();
+
+            // Invariant: an alive product must NEVER reference a soft-deleted category.
+            assertThat(productAlive && !categoryAlive)
+                    .as("iteration %d (deleteWon=%s, createWon=%s, categoryAlive=%s, productAlive=%s): "
+                                    + "alive product referencing a soft-deleted category",
+                            iteration, deleted, created, categoryAlive, productAlive)
+                    .isFalse();
+            // Sanity: the two outcomes are mutually exclusive losses — at least one side wins.
+            assertThat(deleted || created)
+                    .as("iteration %d: at least one of delete/create must succeed", iteration)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("delete racing a concurrent subcategory create never leaves an alive child on a soft-deleted category")
+    void delete_racing_subcategory_create_never_leaves_orphan_child() throws Exception {
+        for (int iteration = 0; iteration < 10; iteration++) {
+            String prefix = "childrace-" + UUID.randomUUID();
+            UUID parentId = categoryService.create(
+                    new CategoryRequest("Parent", prefix, null, null, null)).id();
+            String childSlug = prefix + "-child";
+
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+
+            Future<Boolean> deleteWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.delete(parentId);
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the concurrent create linked a child first
+                    // (CategoryHasChildrenException)
+                    return false;
+                }
+            });
+            Future<Boolean> createWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.create(new CategoryRequest("Child", childSlug, parentId, null, null));
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the parent was already soft-deleted
+                    // (InvalidParentException)
+                    return false;
+                }
+            });
+
+            ready.await();
+            go.countDown();
+            boolean deleted = deleteWon.get();
+            boolean created = createWon.get();
+            pool.shutdown();
+
+            // Both finders are alive-scoped by @SQLRestriction("deleted_at IS NULL").
+            boolean parentAlive = categories.findById(parentId).isPresent();
+            boolean childAlive = categories.findBySlug(childSlug).isPresent();
+
+            // Invariant: an alive subcategory must NEVER reference a soft-deleted parent.
+            assertThat(childAlive && !parentAlive)
+                    .as("iteration %d (deleteWon=%s, createWon=%s, parentAlive=%s, childAlive=%s): "
+                                    + "alive child referencing a soft-deleted parent",
+                            iteration, deleted, created, parentAlive, childAlive)
+                    .isFalse();
+            assertThat(deleted || created)
+                    .as("iteration %d: at least one of delete/create must succeed", iteration)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    @DisplayName("delete racing a concurrent re-parent never leaves an alive child on a soft-deleted category")
+    void delete_racing_reparent_never_leaves_orphan_child() throws Exception {
+        for (int iteration = 0; iteration < 10; iteration++) {
+            String prefix = "reparentrace-" + UUID.randomUUID();
+            UUID parentId = categoryService.create(
+                    new CategoryRequest("Parent", prefix + "-parent", null, null, null)).id();
+            String childSlug = prefix + "-child";
+            UUID childId = categoryService.create(
+                    new CategoryRequest("Child", childSlug, null, null, null)).id();
+
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+
+            Future<Boolean> deleteWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.delete(parentId);
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the concurrent re-parent linked the child first
+                    // (CategoryHasChildrenException)
+                    return false;
+                }
+            });
+            Future<Boolean> reparentWon = pool.submit(() -> {
+                ready.countDown();
+                go.await();
+                try {
+                    categoryService.update(childId, new CategoryRequest("Child", childSlug, parentId, null, null));
+                    return true;
+                } catch (RuntimeException e) {
+                    // legitimate loss: the parent was already soft-deleted
+                    // (InvalidParentException)
+                    return false;
+                }
+            });
+
+            ready.await();
+            go.countDown();
+            boolean deleted = deleteWon.get();
+            boolean reparented = reparentWon.get();
+            pool.shutdown();
+
+            boolean parentAlive = categories.findById(parentId).isPresent();
+            boolean childPointsToParent = categories.findById(childId)
+                    .map(c -> parentId.equals(c.getParentId()))
+                    .orElse(false);
+
+            // Invariant: a child linked to the parent must NEVER coexist with a soft-deleted parent.
+            assertThat(childPointsToParent && !parentAlive)
+                    .as("iteration %d (deleteWon=%s, reparentWon=%s, parentAlive=%s, childPointsToParent=%s): "
+                                    + "alive child referencing a soft-deleted parent",
+                            iteration, deleted, reparented, parentAlive, childPointsToParent)
+                    .isFalse();
+            assertThat(deleted || reparented)
+                    .as("iteration %d: at least one of delete/re-parent must succeed", iteration)
+                    .isTrue();
+        }
     }
 }
