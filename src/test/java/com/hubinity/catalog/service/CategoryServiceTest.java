@@ -452,6 +452,36 @@ class CategoryServiceTest {
             assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
             verify(categories, never()).save(any());
         }
+
+        @Test
+        @DisplayName("throws CategoryHasProductsException when a linked product exists, and never saves")
+        void hasLinkedProducts_throwsAndNeverSaves() {
+            UUID id = UUID.randomUUID();
+            Category existing = entityWithDisplayOrder(0);
+            existing.setId(id);
+            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(true);
+
+            assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
+            verify(categories, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("a category with neither children nor linked products still soft-deletes successfully")
+        void noChildrenNoProducts_softDeletes() {
+            UUID id = UUID.randomUUID();
+            Category existing = entityWithDisplayOrder(0);
+            existing.setId(id);
+            when(categories.findById(id)).thenReturn(Optional.of(existing));
+            when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(false);
+
+            service.delete(id);
+
+            assertThat(existing.getDeletedAt()).isNotNull();
+            verify(categories).save(existing);
+        }
     }
 
     @Nested

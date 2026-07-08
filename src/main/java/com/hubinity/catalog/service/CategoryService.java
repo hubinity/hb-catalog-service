@@ -137,7 +137,11 @@ public class CategoryService {
         if (categories.existsByParentId(id)) {
             throw new CategoryHasChildrenException(id);
         }
-        throw new CategoryHasProductsException(id);
+        if (products.existsByCategoryId(id)) {
+            throw new CategoryHasProductsException(id);
+        }
+        entity.softDelete();
+        categories.save(entity);
     }
 
     @Transactional(readOnly = true)
