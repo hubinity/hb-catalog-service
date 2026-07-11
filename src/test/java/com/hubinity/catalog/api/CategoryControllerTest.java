@@ -34,12 +34,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
 import com.hubinity.catalog.api.dto.CategoryTreeNode;
-import com.hubinity.catalog.api.error.CategoryHasChildrenException;
-import com.hubinity.catalog.api.error.CategoryHasProductsException;
-import com.hubinity.catalog.api.error.CategoryNotFoundException;
-import com.hubinity.catalog.api.error.CircularReferenceException;
-import com.hubinity.catalog.api.error.DuplicateSlugException;
-import com.hubinity.catalog.api.error.InvalidParentException;
+import com.hubinity.catalog.domain.error.CategoryHasChildrenException;
+import com.hubinity.catalog.domain.error.CategoryHasProductsException;
+import com.hubinity.catalog.domain.error.CategoryNotFoundException;
+import com.hubinity.catalog.domain.error.CircularReferenceException;
+import com.hubinity.catalog.domain.error.DuplicateSlugException;
+import com.hubinity.catalog.domain.error.InvalidParentException;
 import com.hubinity.catalog.config.SecurityConfig;
 import com.hubinity.catalog.service.CategoryService;
 

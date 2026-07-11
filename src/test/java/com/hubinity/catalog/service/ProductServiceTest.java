@@ -21,9 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.hubinity.catalog.api.dto.ProductRequest;
 import com.hubinity.catalog.api.dto.ProductResponse;
-import com.hubinity.catalog.api.error.DuplicateSkuException;
-import com.hubinity.catalog.api.error.InvalidCategoryException;
-import com.hubinity.catalog.api.error.ProductNotFoundException;
+import com.hubinity.catalog.domain.error.DuplicateSkuException;
+import com.hubinity.catalog.domain.error.InvalidCategoryException;
+import com.hubinity.catalog.domain.error.ProductNotFoundException;
 import com.hubinity.catalog.api.mapper.ProductMapper;
 import com.hubinity.catalog.domain.CategoryRepository;
 import com.hubinity.catalog.domain.PriceHistory;
@@ -157,7 +157,7 @@ class ProductServiceTest {
             when(products.softDeleteIfRemovable(id)).thenReturn(0);
 
             assertThatThrownBy(() -> service.delete(id))
-                    .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
+                    .isInstanceOf(com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException.class);
             verify(products, never()).save(any());
         }
 

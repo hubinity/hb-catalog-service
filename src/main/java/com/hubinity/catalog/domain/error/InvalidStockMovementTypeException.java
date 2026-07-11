@@ -1,4 +1,4 @@
-package com.hubinity.catalog.api.error;
+package com.hubinity.catalog.domain.error;
 
 import com.hubinity.catalog.domain.StockMovementType;
 

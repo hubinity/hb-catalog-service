@@ -21,16 +21,16 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
-import com.hubinity.catalog.api.error.CategoryHasChildrenException;
-import com.hubinity.catalog.api.error.CategoryNotFoundException;
-import com.hubinity.catalog.api.error.CircularReferenceException;
-import com.hubinity.catalog.api.error.DuplicateSlugException;
-import com.hubinity.catalog.api.error.InvalidParentException;
-import com.hubinity.catalog.api.error.CategoryHasProductsException;
 import com.hubinity.catalog.api.mapper.CategoryMapper;
 import com.hubinity.catalog.domain.Category;
 import com.hubinity.catalog.domain.CategoryRepository;
 import com.hubinity.catalog.domain.ProductRepository;
+import com.hubinity.catalog.domain.error.CategoryHasChildrenException;
+import com.hubinity.catalog.domain.error.CategoryHasProductsException;
+import com.hubinity.catalog.domain.error.CategoryNotFoundException;
+import com.hubinity.catalog.domain.error.CircularReferenceException;
+import com.hubinity.catalog.domain.error.DuplicateSlugException;
+import com.hubinity.catalog.domain.error.InvalidParentException;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CategoryService")
@@ -448,6 +448,7 @@ class CategoryServiceTest {
             when(categories.softDeleteIfRemovable(id)).thenReturn(0);
             when(categories.findById(id)).thenReturn(Optional.of(existing));
             when(categories.existsByParentId(id)).thenReturn(false);
+            when(products.existsByCategoryId(id)).thenReturn(true);
 
             assertThatThrownBy(() -> service.delete(id)).isInstanceOf(CategoryHasProductsException.class);
             verify(categories, never()).save(any());

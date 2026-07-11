@@ -1,4 +1,4 @@
-package com.hubinity.catalog.api.error;
+package com.hubinity.catalog.domain.error;
 
 /** Thrown when a create/update request's slug collides with an alive category's slug. */
 public class DuplicateSlugException extends RuntimeException {

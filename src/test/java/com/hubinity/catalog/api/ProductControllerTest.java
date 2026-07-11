@@ -34,12 +34,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubinity.catalog.api.dto.ProductPageResponse;
 import com.hubinity.catalog.api.dto.ProductRequest;
 import com.hubinity.catalog.api.dto.ProductResponse;
-import com.hubinity.catalog.api.error.DuplicateSkuException;
-import com.hubinity.catalog.api.error.InvalidCategoryException;
+import com.hubinity.catalog.domain.error.DuplicateSkuException;
+import com.hubinity.catalog.domain.error.InvalidCategoryException;
 import com.hubinity.catalog.api.dto.PriceHistoryResponse;
 import com.hubinity.catalog.api.error.InvalidPaginationException;
-import com.hubinity.catalog.api.error.ProductHasStockOrReservationsException;
-import com.hubinity.catalog.api.error.ProductNotFoundException;
+import com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException;
+import com.hubinity.catalog.domain.error.ProductNotFoundException;
 import com.hubinity.catalog.config.SecurityConfig;
 import com.hubinity.catalog.service.ProductService;
 
