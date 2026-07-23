@@ -199,7 +199,7 @@
           "phase": "contracts",
           "description": "Declarar operação GET no path de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-001-1"]
         },

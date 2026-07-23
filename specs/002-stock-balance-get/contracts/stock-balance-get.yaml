@@ -1,0 +1,42 @@
+# Fragmentos-alvo para contracts-catalog/openapi/catalog.yaml (T-001-2)
+# NÃO copiar os comentários de cabeçalho para o contrato.
+#
+# Escopo T-001-2: operação get (identidade + desfechos) e tag stock.
+# Parâmetro productId (T-001-3), content da '200' (T-001-4) e security
+# (T-001-5) ficam de fora — salvo contingência FR-006/R2 (parâmetro
+# mínimo no mesmo commit, se o validador exigir).
+
+# ── Fragmento 1: seção `tags` (adicionar após a tag products) ──
+  - name: stock
+    description: Product stock balance and movements
+
+# ── Fragmento 2: Path Item completo pós-edição ──
+# (substitui o bloco atual de /api/v1/products/{productId}/stock)
+  /api/v1/products/{productId}/stock:
+    summary: Stock balance for a product (canonical path)
+    description: |
+      Canonical read address for a product's on-hand stock snapshot
+      (see components/schemas/StockItem). The GET operation below is
+      declared by T-001-2; its productId parameter, response body, and
+      authorization are declared by follow-up contract tasks
+      (T-001-3..T-001-5).
+    get:
+      tags: [stock]
+      operationId: getStockItemByProductId
+      summary: Fetch the current stock balance for a product
+      responses:
+        '200':
+          description: Current stock balance for the product
+        '404':
+          description: Stock balance not found for the given product (unknown product or no stock record)
+
+# ── Contingência FR-006/R2 (aplicar SOMENTE se o build falhar por
+#    parâmetro de path não declarado) — inserir logo após `summary:` da
+#    operação; T-001-3 permanece dona da especificação fina ──
+#      parameters:
+#        - name: productId
+#          in: path
+#          required: true
+#          schema:
+#            type: string
+#            format: uuid
