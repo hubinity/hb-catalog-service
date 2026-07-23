@@ -1,0 +1,536 @@
+{
+  "service": "hb-catalog-service",
+  "service_type": "backend",
+  "status": "in_progress",
+  "tasks_document": {
+    "objective_and_flow": {
+      "role_in_flow": "Source of truth do catálogo HiBit (produtos, categorias, estoque) — publica eventos de mudança de catálogo; consumido via REST pelo hb-catalog-web (admin) e, a partir da Fase 3, pelo sc-order-service (totem)",
+      "previous_service": "platform-shared-contracts (Fase 0)",
+      "integration_type": {
+        "async_event": true,
+        "sync_rest": true
+      },
+      "trigger": "Requisições REST autenticadas (Keycloak realm hibit) do hb-catalog-web; a partir da Fase 3, reservas de estoque do sc-order-service",
+      "action": "CRUD de produtos/categorias, gestão de estoque (movements IN/OUT + reservations reserve/release/commit com Idempotency-Key) e publicação de eventos via Transactional Outbox na exchange catalog.events"
+    },
+    "integrations": {
+      "inputs": {
+        "events": [],
+        "rest_endpoints": []
+      },
+      "outputs": {
+        "events": [
+          {
+            "name": "ProductCreated",
+            "destination": "exchange catalog.events (routing key catalog.product.created); consumidor previsto: sc-order-service (Fase 3, invalidação de cache do totem)"
+          },
+          {
+            "name": "ProductUpdated",
+            "destination": "exchange catalog.events (routing key catalog.product.updated); consumidor previsto: sc-order-service (Fase 3)"
+          },
+          {
+            "name": "ProductDeactivated",
+            "destination": "exchange catalog.events (routing key catalog.product.deactivated); consumidor previsto: sc-order-service (Fase 3)"
+          },
+          {
+            "name": "StockChanged",
+            "destination": "exchange catalog.events (routing key catalog.stock.changed); consumidor previsto: sc-order-service (Fase 3)"
+          },
+          {
+            "name": "PriceChanged",
+            "destination": "exchange catalog.events (routing key catalog.price.changed); consumidor previsto: sc-order-service (Fase 3)"
+          }
+        ],
+        "rest_endpoints": [
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products?categoryId=&q=&page=",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products/{id}",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products",
+            "method": "POST"
+          },
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products/{id}",
+            "method": "PUT"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/products/{id}",
+            "method": "DELETE"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/products/{id}/price-history",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "hb-catalog-web; sc-order-service (Fase 3, proxy GET /api/v1/catalog/*)",
+            "url": "/api/v1/categories?tree=true",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/categories/{id}",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/categories",
+            "method": "POST"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/categories/{id}",
+            "method": "PUT"
+          },
+          {
+            "consumed_by": "NÃO ESPECIFICADO NO PRD",
+            "url": "/api/v1/categories/{id}",
+            "method": "DELETE"
+          },
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products/{productId}/stock/movements",
+            "method": "POST"
+          },
+          {
+            "consumed_by": "hb-catalog-web",
+            "url": "/api/v1/products/{productId}/stock/movements",
+            "method": "GET"
+          },
+          {
+            "consumed_by": "sc-order-service (Fase 3, via service account; hoje admin)",
+            "url": "/api/v1/stock/reservations",
+            "method": "POST"
+          },
+          {
+            "consumed_by": "sc-order-service (Fase 3, via service account; hoje admin)",
+            "url": "/api/v1/stock/reservations/{id}/release",
+            "method": "POST"
+          },
+          {
+            "consumed_by": "sc-order-service (Fase 3, via service account; hoje admin)",
+            "url": "/api/v1/stock/reservations/{id}/commit",
+            "method": "POST"
+          }
+        ]
+      },
+      "missing_rule": "NÃO ESPECIFICADO NO PRD"
+    },
+    "contract_compliance": {
+      "reused_dtos": [
+        "com.hubinity:contracts-catalog:0.1.0-SNAPSHOT (dependência declarada no pom.xml; classes geradas não referenciadas no código)",
+        "com.hubinity:contracts-events:0.1.0-SNAPSHOT (dependência declarada no pom.xml; classes geradas não referenciadas no código)"
+      ],
+      "http_statuses": [200, 201, 204, 400, 404, 409, 422],
+      "response_patterns": [
+        "RFC 7807 ProblemDetail para todos os erros (ApiExceptionHandler)",
+        "Idempotency-Key header obrigatório nas 4 mutações de estoque (movements, reserve, release, commit) — IdempotencyFilter + tabela idempotency_key durável",
+        "201 Created com header Location em POST de criação (products, categories)",
+        "Paginação: {content, page, size, totalElements, totalPages} (ProductPageResponse, StockMovementPageResponse)"
+      ],
+      "shared_contracts_location": "platform-shared-contracts/ (contracts-catalog/openapi/catalog.yaml; build-only via mvn -B install, publicação remota adiada — ADR 0006)"
+    },
+    "local_stack": {
+      "language": "Java 21",
+      "framework": "Spring Boot 4.1.0",
+      "persistence": "PostgreSQL 16 + Flyway (ddl-auto: validate; migrações V1__init, V2__price_history, V3__stock_idempotency, V4__create_outbox_messages)",
+      "security": "OAuth2 Resource Server — Keycloak realm hibit; KeycloakRealmRoleConverter (realm_access.roles); @PreAuthorize(\"hasRole('admin')\") nas mutações",
+      "build_tool": "Maven 3.9+",
+      "others": [
+        "RabbitMQ (Transactional Outbox — OutboxDispatcher @Scheduled 5s, DLX catalog.events.dlx)",
+        "MapStruct (ADR 0010)",
+        "UUID v7 PK gerado no banco via uuidv7() (ADR 0009)",
+        "Resilience4j",
+        "Testcontainers (@Tag(\"integration\"), *IT.java)",
+        "springdoc (Swagger UI /swagger-ui.html)"
+      ]
+    },
+    "infrastructure": {
+      "application_port": "8080",
+      "postgresql": {
+        "jdbc_url": "jdbc:postgresql://localhost:5432/hb_catalog",
+        "username": "hubinity",
+        "password": "hubinity_local",
+        "driver": "org.postgresql.Driver"
+      },
+      "application_yaml": {
+        "spring.profiles.active": "${SPRING_PROFILES_ACTIVE:local}",
+        "spring.jpa.hibernate.ddl-auto": "validate",
+        "spring.flyway.enabled": true,
+        "spring.rabbitmq (local)": "localhost:5672, hubinity/hubinity_local, publisher-confirm-type: correlated",
+        "spring.security.oauth2.resourceserver.jwt.issuer-uri (local)": "http://localhost:8081/realms/hibit",
+        "server.port": "${SERVER_PORT:8080}",
+        "springdoc.swagger-ui.path": "/swagger-ui.html",
+        "profiles": ["local (default)", "staging", "prod"]
+      }
+    },
+    "coding_backlog": {
+      "execution_order": [
+        "setup",
+        "contracts",
+        "domain",
+        "persistence",
+        "integrations",
+        "api",
+        "security"
+      ],
+      "tasks": [
+        {
+          "id": "T-001-1",
+          "phase": "contracts",
+          "description": "Definir path do endpoint de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-001-2",
+          "phase": "contracts",
+          "description": "Declarar operação GET no path de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-001-1"]
+        },
+        {
+          "id": "T-001-3",
+          "phase": "contracts",
+          "description": "Definir parâmetro productId da operação de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-001-2"]
+        },
+        {
+          "id": "T-001-4",
+          "phase": "contracts",
+          "description": "Definir schema de resposta StockItemResponse da operação de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-001-3"]
+        },
+        {
+          "id": "T-001-5",
+          "phase": "contracts",
+          "description": "Definir requisito de autorização da operação de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-001-4"]
+        },
+        {
+          "id": "T-002-1",
+          "phase": "contracts",
+          "description": "Definir path do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-002-2",
+          "phase": "contracts",
+          "description": "Declarar operação POST no path de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-1"]
+        },
+        {
+          "id": "T-002-3",
+          "phase": "contracts",
+          "description": "Definir formato de requisição multipart do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-2"]
+        },
+        {
+          "id": "T-002-4",
+          "phase": "contracts",
+          "description": "Definir schema de resposta do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-3"]
+        },
+        {
+          "id": "T-002-5",
+          "phase": "contracts",
+          "description": "Definir estratégia de armazenamento de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-003-1",
+          "phase": "domain",
+          "description": "Adicionar atributo images à entidade Product com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-5"]
+        },
+        {
+          "id": "T-003-2",
+          "phase": "domain",
+          "description": "Criar migração Flyway V<n> para a coluna de imagens da tabela product com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-003-1"]
+        },
+        {
+          "id": "T-003-3",
+          "phase": "domain",
+          "description": "Adicionar campo images ao DTO ProductRequest com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-003-2"]
+        },
+        {
+          "id": "T-003-4",
+          "phase": "domain",
+          "description": "Adicionar campo images ao DTO ProductResponse com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-003-3"]
+        },
+        {
+          "id": "T-003-5",
+          "phase": "domain",
+          "description": "Mapear campo images no mapper MapStruct de Product com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-003-4"]
+        },
+        {
+          "id": "T-004-1",
+          "phase": "api",
+          "description": "Adicionar método de leitura de saldo de estoque ao StockService com base no hb-catalog-service",
+          "source_reference": "hb-catalog-service",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-001-5"]
+        },
+        {
+          "id": "T-004-2",
+          "phase": "api",
+          "description": "Adicionar handler GET de leitura de saldo de estoque ao StockController com base no hb-catalog-service",
+          "source_reference": "hb-catalog-service",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-004-1"]
+        },
+        {
+          "id": "T-004-3",
+          "phase": "api",
+          "description": "Mapear a entidade de estoque para StockItemResponse no handler de leitura de saldo com base no hb-catalog-service",
+          "source_reference": "hb-catalog-service",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-004-2"]
+        },
+        {
+          "id": "T-004-4",
+          "phase": "api",
+          "description": "Definir path do handler de leitura de saldo de estoque no StockController com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "hb-catalog-service",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-004-3"]
+        },
+        {
+          "id": "T-005-1",
+          "phase": "api",
+          "description": "Adicionar método de upload de imagens de produto ao ProductService com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-5", "T-003-5"]
+        },
+        {
+          "id": "T-005-2",
+          "phase": "api",
+          "description": "Adicionar handler POST de upload de imagens de produto ao ProductController com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-005-1"]
+        },
+        {
+          "id": "T-005-3",
+          "phase": "api",
+          "description": "Definir a recepção multipart do handler de upload de imagens de produto com base em NÃO ESPECIFICADO NO PRD",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-005-2"]
+        },
+        {
+          "id": "T-005-4",
+          "phase": "api",
+          "description": "Persistir a referência da imagem no atributo images da entidade Product com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-005-3"]
+        },
+        {
+          "id": "T-005-5",
+          "phase": "api",
+          "description": "Retornar ProductResponse atualizado no handler de upload de imagens de produto com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-005-4"]
+        },
+        {
+          "id": "T-006-1",
+          "phase": "api",
+          "description": "Adicionar geração de ETag ao handler GET /api/v1/products no ProductController com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-006-2",
+          "phase": "api",
+          "description": "Adicionar validação de If-None-Match ao handler GET /api/v1/products no ProductController com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-006-1"]
+        },
+        {
+          "id": "T-006-3",
+          "phase": "api",
+          "description": "Retornar 304 Not Modified no handler GET /api/v1/products com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-006-2"]
+        },
+        {
+          "id": "T-006-4",
+          "phase": "api",
+          "description": "Adicionar geração de ETag ao handler GET /api/v1/categories no CategoryController com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-006-5",
+          "phase": "api",
+          "description": "Adicionar validação de If-None-Match ao handler GET /api/v1/categories no CategoryController com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-006-4"]
+        },
+        {
+          "id": "T-006-6",
+          "phase": "api",
+          "description": "Retornar 304 Not Modified no handler GET /api/v1/categories com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-006-5"]
+        },
+        {
+          "id": "T-007-1",
+          "phase": "security",
+          "description": "Adicionar a role do service account do sc-order-service ao @PreAuthorize de POST /api/v1/stock/reservations com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-007-2",
+          "phase": "security",
+          "description": "Adicionar a role do service account do sc-order-service ao @PreAuthorize de POST /api/v1/stock/reservations/{id}/release com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        },
+        {
+          "id": "T-007-3",
+          "phase": "security",
+          "description": "Adicionar a role do service account do sc-order-service ao @PreAuthorize de POST /api/v1/stock/reservations/{id}/commit com base no PRD-HUBINITY.md",
+          "source_reference": "PRD-HUBINITY.md",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": []
+        }
+      ]
+    },
+    "acceptance_criteria": {
+      "checks": [
+        {
+          "id": "AC-001",
+          "description": "Serviço sobe localmente sem erro (mvn spring-boot:run com platform-infra ativo: make up)"
+        },
+        {
+          "id": "AC-002",
+          "description": "mvn -B verify verde (unit tests, sem Docker)"
+        },
+        {
+          "id": "AC-003",
+          "description": "mvn -P integration-tests verify verde (Testcontainers Postgres + RabbitMQ)"
+        },
+        {
+          "id": "AC-004",
+          "description": "Evento ProductCreated visível na exchange catalog.events via UI RabbitMQ (localhost:15672) após POST /api/v1/products (PRD §Verification, cenário 1)"
+        },
+        {
+          "id": "AC-005",
+          "description": "As 4 mutações de estoque (movements, reserve, release, commit) rejeitam requisição sem header Idempotency-Key com ProblemDetail"
+        },
+        {
+          "id": "AC-006",
+          "description": "Reserva expirada devolve o saldo a available em até 2 minutos após expiresAt (sweep de expiração — PRD §4.1)"
+        }
+      ]
+    },
+    "end_to_end_execution": {
+      "startup_order": [
+        "platform-infra: make up (Postgres 16 + RabbitMQ + Keycloak)",
+        "platform-shared-contracts: mvn -B -DskipTests install",
+        "hb-catalog-service: mvn spring-boot:run (profile local)"
+      ],
+      "required_dependencies": [
+        "PostgreSQL 16 — jdbc:postgresql://localhost:5432/hb_catalog (hubinity/hubinity_local)",
+        "RabbitMQ — localhost:5672 (hubinity/hubinity_local), management UI localhost:15672",
+        "Keycloak — http://localhost:8081/realms/hibit (client hb-catalog-web)"
+      ],
+      "simulation_instructions": [
+        "Obter JWT: curl -d 'client_id=hb-catalog-web' -d 'username=admin-hibit' -d 'password=admin123' -d 'grant_type=password' http://localhost:8081/realms/hibit/protocol/openid-connect/token",
+        "Criar produto: curl -X POST http://localhost:8080/api/v1/products -H 'Authorization: Bearer <token>' -H 'Content-Type: application/json' -d '<ProductRequest>'",
+        "Registrar movimento de estoque: curl -X POST http://localhost:8080/api/v1/products/{productId}/stock/movements -H 'Authorization: Bearer <token>' -H 'Idempotency-Key: <uuid>' -H 'Content-Type: application/json' -d '<StockMovementRequest>'",
+        "Verificar evento na exchange catalog.events via http://localhost:15672",
+        "Explorar contratos via Swagger UI: http://localhost:8080/swagger-ui.html"
+      ],
+      "tools": ["Postman", "curl"]
+    }
+  }
+}
