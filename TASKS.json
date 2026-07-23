@@ -208,7 +208,7 @@
           "phase": "contracts",
           "description": "Definir parâmetro productId da operação de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-001-2"]
         },

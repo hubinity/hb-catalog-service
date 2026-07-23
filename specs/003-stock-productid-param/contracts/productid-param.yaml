@@ -1,0 +1,25 @@
+# Fragmentos-alvo para contracts-catalog/openapi/catalog.yaml (T-001-3)
+# NÃO copiar os comentários de cabeçalho para o contrato.
+#
+# Escopo T-001-3 (residual): +description no parâmetro e description do
+# Path Item atualizada. Nada mais muda (FR-004/FR-005).
+
+# ── Fragmento 1: parâmetro completo (estado final do parameters da
+#    operação getStockItemByProductId — só a linha description é nova) ──
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: Product UUID
+          schema:
+            type: string
+            format: uuid
+
+# ── Fragmento 2: description do Path Item (substitui o bloco atual;
+#    summary permanece) ──
+    description: |
+      Canonical read address for a product's on-hand stock snapshot
+      (see components/schemas/StockItem). The GET operation and its
+      productId parameter are declared; the response body and
+      authorization are declared by follow-up contract tasks
+      (T-001-4, T-001-5).
