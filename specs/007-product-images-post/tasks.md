@@ -27,8 +27,8 @@
 
 **Purpose**: Confirmar o estado herdado e **medir** o baseline antes de qualquer edição
 
-- [ ] T001 Confirmar pré-condições: branch `feature/stock-balance-path` ativa nos dois repos; working tree de `platform-shared-contracts` limpo com HEAD em `fd9b905`; o Path Item de imagens existe (`grep -c "products/{productId}/images" platform-shared-contracts/contracts-catalog/openapi/catalog.yaml` → `1`); a frase a ser removida ainda está presente (`grep -c "declared by the remaining T-002 tasks" …` → `1`); nenhuma operação de mutação existe ainda (`grep -cE "^\s+(post|put|patch|delete):" …` → `0`)
-- [ ] T002 **Medir** o baseline de testes do consumidor **antes** de editar, conforme quickstart passo 1: `( cd hb-catalog-service && mvn -B verify )` e registrar a linha `Tests run:`. **Não** herdar a contagem de 005/006 — o número é medido agora e é o alvo de comparação de T009
+- [X] T001 Confirmar pré-condições: branch `feature/stock-balance-path` ativa nos dois repos; working tree de `platform-shared-contracts` limpo com HEAD em `fd9b905`; o Path Item de imagens existe (`grep -c "products/{productId}/images" platform-shared-contracts/contracts-catalog/openapi/catalog.yaml` → `1`); a frase a ser removida ainda está presente (`grep -c "declared by the remaining T-002 tasks" …` → `1`); nenhuma operação de mutação existe ainda (`grep -cE "^\s+(post|put|patch|delete):" …` → `0`)
+- [X] T002 **Medir** o baseline de testes do consumidor **antes** de editar, conforme quickstart passo 1: `( cd hb-catalog-service && mvn -B verify )` e registrar a linha `Tests run:`. **Não** herdar a contagem de 005/006 — o número é medido agora e é o alvo de comparação de T009
 
 ---
 
@@ -48,10 +48,10 @@
 
 ### Implementation for User Story 1
 
-- [ ] T003 [US1] Aplicar o **fragmento 2** de `hb-catalog-service/specs/007-product-images-post/contracts/product-images-post.yaml` em `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml`: inserir o bloco `post` **após** `parameters`, como último elemento do Path Item de imagens — **sem copiar as linhas de comentário**. Satisfaz FR-001, FR-002, FR-004, FR-005 e FR-008; e, por omissão deliberada, FR-003 (não redeclarar `productId`), FR-009 (sem `400`/`401`), FR-010 (sem `requestBody`), FR-011 (sem `security`), FR-012 (sem `Idempotency-Key`)
-- [ ] T004 [US1] Aplicar o **fragmento 1**: substituir o bloco `description:` do Path Item de imagens pelo texto fixado, mantendo `summary` e `parameters` intocados — satisfaz FR-013
-- [ ] T005 [US1] Executar as verificações de delimitação do quickstart passo 3 sobre `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml`: (a) inspecionar cada linha `-` do `git diff` e confirmar que **todas** pertencem ao bloco `description:` do Path Item de imagens; (b) o grep dirigido a `getProductById|getStockItemByProductId|securitySchemes|summary|parameters` entre as linhas removidas **não** retorna nada; (c) `grep -c "declared by the remaining T-002 tasks"` → `0` — satisfaz FR-014
-- [ ] T006 [US1] Executar a autoridade de validação: `( cd platform-shared-contracts && mvn -B -DskipTests install )` → `BUILD SUCCESS` — satisfaz FR-015 e SC-005, e reinstala o artefato consumido por T009
+- [X] T003 [US1] Aplicar o **fragmento 2** de `hb-catalog-service/specs/007-product-images-post/contracts/product-images-post.yaml` em `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml`: inserir o bloco `post` **após** `parameters`, como último elemento do Path Item de imagens — **sem copiar as linhas de comentário**. Satisfaz FR-001, FR-002, FR-004, FR-005 e FR-008; e, por omissão deliberada, FR-003 (não redeclarar `productId`), FR-009 (sem `400`/`401`), FR-010 (sem `requestBody`), FR-011 (sem `security`), FR-012 (sem `Idempotency-Key`)
+- [X] T004 [US1] Aplicar o **fragmento 1**: substituir o bloco `description:` do Path Item de imagens pelo texto fixado, mantendo `summary` e `parameters` intocados — satisfaz FR-013
+- [X] T005 [US1] Executar as verificações de delimitação do quickstart passo 3 sobre `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml`: (a) inspecionar cada linha `-` do `git diff` e confirmar que **todas** pertencem ao bloco `description:` do Path Item de imagens; (b) o grep dirigido a `getProductById|getStockItemByProductId|securitySchemes|summary|parameters` entre as linhas removidas **não** retorna nada; (c) `grep -c "declared by the remaining T-002 tasks"` → `0` — satisfaz FR-014
+- [X] T006 [US1] Executar a autoridade de validação: `( cd platform-shared-contracts && mvn -B -DskipTests install )` → `BUILD SUCCESS` — satisfaz FR-015 e SC-005, e reinstala o artefato consumido por T009
 
 **Checkpoint**: User Story 1 completa — operação declarada, documento válido e honesto; MVP entregável
 
@@ -65,9 +65,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T007 [P] [US2] Verificar em `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml` que (a) o desfecho `'403'` está declarado e sua `description` atribui a causa à **falta da role `admin`**, não a falha de autenticação (FR-006); (b) a `description` da operação afirma que a role `admin` é exigida e que um JWT válido sozinho não basta (FR-007); (c) a `description` do `201` registra a ausência de `Location` e a razão, e **não** existe bloco `headers` (FR-005)
-- [ ] T008 [P] [US2] Executar o quickstart passo 5 — confirmar que `platform-shared-contracts/contracts-catalog/target/generated-sources/openapi/src/main/java/com/hubinity/contracts/catalog/dto/` contém os mesmos 4 DTOs e que **não existe** diretório `.../catalog/api/`. É a evidência que sustenta o Constitution Check do Princípio III, e **mais informativa aqui do que em T-002-1**: lá o path não tinha operação; aqui declara-se uma operação real e ainda assim nada é gerado
-- [ ] T009 [P] [US2] Provar regressão zero no consumidor: `( cd hb-catalog-service && mvn -B verify )` verde, com a contagem de testes **idêntica à medida em T002** — satisfaz FR-016 e SC-006
+- [X] T007 [P] [US2] Verificar em `platform-shared-contracts/contracts-catalog/openapi/catalog.yaml` que (a) o desfecho `'403'` está declarado e sua `description` atribui a causa à **falta da role `admin`**, não a falha de autenticação (FR-006); (b) a `description` da operação afirma que a role `admin` é exigida e que um JWT válido sozinho não basta (FR-007); (c) a `description` do `201` registra a ausência de `Location` e a razão, e **não** existe bloco `headers` (FR-005)
+- [X] T008 [P] [US2] Executar o quickstart passo 5 — confirmar que `platform-shared-contracts/contracts-catalog/target/generated-sources/openapi/src/main/java/com/hubinity/contracts/catalog/dto/` contém os mesmos 4 DTOs e que **não existe** diretório `.../catalog/api/`. É a evidência que sustenta o Constitution Check do Princípio III, e **mais informativa aqui do que em T-002-1**: lá o path não tinha operação; aqui declara-se uma operação real e ainda assim nada é gerado
+- [X] T009 [P] [US2] Provar regressão zero no consumidor: `( cd hb-catalog-service && mvn -B verify )` verde, com a contagem de testes **idêntica à medida em T002** — satisfaz FR-016 e SC-006
 
 **Checkpoint**: Ambas as user stories verificadas de forma independente
 
@@ -77,9 +77,9 @@
 
 **Purpose**: Registro, rastreabilidade e encerramento das pendências constitucionais
 
-- [ ] T010 Commitar em `platform-shared-contracts/` (branch `feature/stock-balance-path`) com prefixo convencional — sugestão: `feat(contracts): declare product image POST operation (T-002-2)` — restrito a `contracts-catalog/openapi/catalog.yaml`, registrando no corpo (a) que é a **primeira operação de mutação do contrato**, (b) o encerramento das pendências dos Princípios V e VI e (c) por que a role `admin` só pode ser expressa em prosa
-- [ ] T011 Atualizar `hb-catalog-service/TASKS.json`: definir `"status": "done"` na task `T-002-2`, mantendo o restante intacto
-- [ ] T012 Executar o roteiro completo de `hb-catalog-service/specs/007-product-images-post/quickstart.md` de ponta a ponta e atualizar os checklists da feature (`checklists/requirements.md`, `checklists/operation.md`) conforme o resultado
+- [X] T010 Commitar em `platform-shared-contracts/` (branch `feature/stock-balance-path`) com prefixo convencional — sugestão: `feat(contracts): declare product image POST operation (T-002-2)` — restrito a `contracts-catalog/openapi/catalog.yaml`, registrando no corpo (a) que é a **primeira operação de mutação do contrato**, (b) o encerramento das pendências dos Princípios V e VI e (c) por que a role `admin` só pode ser expressa em prosa
+- [X] T011 Atualizar `hb-catalog-service/TASKS.json`: definir `"status": "done"` na task `T-002-2`, mantendo o restante intacto
+- [X] T012 Executar o roteiro completo de `hb-catalog-service/specs/007-product-images-post/quickstart.md` de ponta a ponta e atualizar os checklists da feature (`checklists/requirements.md`, `checklists/operation.md`) conforme o resultado
 - [ ] T013 Commitar em `hb-catalog-service/` (branch `feature/stock-balance-path`) os artefatos da feature — `specs/007-product-images-post/`, `TASKS.json`, bloco SPECKIT de `CLAUDE.md` — sugestão: `docs: add spec artifacts for product image POST operation (T-002-2)`
 
 ---

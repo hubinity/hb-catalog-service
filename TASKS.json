@@ -235,7 +235,7 @@
           "phase": "contracts",
           "description": "Definir path do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": []
         },
@@ -244,14 +244,14 @@
           "phase": "contracts",
           "description": "Declarar operação POST no path de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-1"]
         },
         {
           "id": "T-002-3",
           "phase": "contracts",
-          "description": "Definir formato de requisição multipart do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "description": "Definir formato de requisição JSON (referência de URL, não multipart) do endpoint de registro de imagens de produto em contracts-catalog/openapi/catalog.yaml com base na decisão de armazenamento URL-only (spec 006-product-images-path, decisão do usuário de 2026-07-25)",
           "source_reference": "shared-contracts",
           "status": "refined",
           "decomposition_allowed": false,
