@@ -1,0 +1,53 @@
+# Fragmentos-alvo de T-002-2 — NÃO é um documento OpenAPI completo.
+#
+# Arquivo destino: platform-shared-contracts/contracts-catalog/openapi/catalog.yaml
+# Path Item destino: /api/v1/products/{productId}/images (criado por T-002-1, commit fd9b905)
+#
+# ATENÇÃO: esta mudança NÃO é estritamente aditiva (ao contrário de T-002-1).
+# São DOIS fragmentos: (1) substitui a description do Path Item; (2) insere o bloco post.
+# Toda linha REMOVIDA no diff deve pertencer ao bloco `description:` do fragmento 1.
+#
+# Escopo: identidade da operação + desfechos SEM `content`.
+# Sem requestBody (T-002-3), sem content/schema (T-002-4), sem security próprio
+# (herda bearerAuth da raiz), sem parâmetro productId (herda do Path Item),
+# sem header Idempotency-Key (decisão registrada — research R3).
+
+# ============================================================================
+# FRAGMENTO 1 — SUBSTITUIR a `description` do Path Item.
+# O texto atual afirma "Operations on this path are declared by the remaining
+# T-002 tasks", o que se torna FALSO assim que o post abaixo for declarado.
+# `summary` e `parameters` permanecem intocados.
+# ============================================================================
+
+    description: |
+      Address for managing a product's image references. Images are stored
+      externally; this API records only their URLs (URL-only reference
+      strategy) and never receives image bytes. The POST operation is
+      declared; its request body and response body are completed by
+      T-002-3 and T-002-4. Access requires a valid Bearer JWT (inherited
+      from the document-level bearerAuth security scheme); registering an
+      image additionally requires the admin role.
+
+# ============================================================================
+# FRAGMENTO 2 — INSERIR após o bloco `parameters`, como último elemento
+# do Path Item. Indentação: 4 espaços (nível de operação).
+# ============================================================================
+
+    post:
+      tags: [products]
+      operationId: addProductImage
+      summary: Register an image reference for a product
+      description: |
+        Records the URL of an externally hosted image against the product.
+        No image bytes are transmitted. Requires the admin realm role — a
+        valid Bearer JWT alone is not sufficient; requests authenticated
+        without that role are rejected with 403.
+      responses:
+        '201':
+          description: |
+            Image reference registered. No Location header is returned:
+            under the URL-only strategy there is no per-image resource URI.
+        '403':
+          description: Authenticated principal lacks the required admin role
+        '404':
+          description: Product not found

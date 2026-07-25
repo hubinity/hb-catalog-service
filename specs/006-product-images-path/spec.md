@@ -12,7 +12,7 @@
 
 ## Contexto técnico verificado (código real)
 
-- **Contrato** (`contracts-catalog/openapi/catalog.yaml`): OpenAPI 3.1.0. Possui `info`, `servers`, `security` global (`bearerAuth`), `tags` (`products`, `stock`), **2 paths** e `components` (`securitySchemes` + 5 schemas).
+- **Contrato** (`contracts-catalog/openapi/catalog.yaml`): OpenAPI 3.1.0. Possui `info`, `servers`, `security` global (`bearerAuth`), `tags` (`products`, `stock`), **2 paths** e `components` (`securitySchemes` + 4 schemas: `Product`, `Category`, `StockItem`, `StockMovement`).
 - **Convenção de path existente — divergente**: `/api/v1/products/{id}` (recurso direto, parâmetro `{id}`) e `/api/v1/products/{productId}/stock` (sub-recurso, parâmetro `{productId}`). O documento **não é uniforme**: sub-recursos usam `{productId}`, o recurso direto usa `{id}`.
 - **Path Item como unidade**: o path de estoque (cadeia T-001) demonstra o padrão adotado neste repositório — o Path Item carrega `summary` e `description` próprios, distintos dos da operação.
 - **Segurança já é global**: `security: [ { bearerAuth: [] } ]` está no nível raiz (entregue em T-001-5). **Qualquer path novo herda o requisito de JWT bearer automaticamente**, sem declaração própria.
