@@ -262,7 +262,7 @@
           "phase": "contracts",
           "description": "Definir schema de resposta do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-3"]
         },
@@ -273,6 +273,24 @@
           "source_reference": "shared-contracts",
           "status": "refined",
           "decomposition_allowed": false,
+          "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-6",
+          "phase": "contracts",
+          "description": "Adicionar a propriedade images ao schema Product em contracts-catalog/openapi/catalog.yaml, para que as operações de leitura de produto exponham as URLs de imagem no contrato. Lacuna identificada na spec 009-product-image-response: nenhuma task existente cobre o schema Product do contrato — a cadeia T-003 cobre apenas entidade, migração Flyway, DTOs do serviço e mapper",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-7",
+          "phase": "contracts",
+          "description": "Declarar o schema ProblemDetail (RFC 7807) em contracts-catalog/openapi/catalog.yaml e referenciá-lo no content dos desfechos de erro das operações do catálogo. Lacuna identificada na spec 009-product-image-response: o Princípio I da constituição exige RFC 7807 em toda resposta de erro do serviço, mas o contrato declara os desfechos de erro apenas com description, sem schema",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": true,
           "depends_on": ["T-002-4"]
         },
         {
