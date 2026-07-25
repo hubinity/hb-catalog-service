@@ -271,7 +271,7 @@
           "phase": "contracts",
           "description": "Definir estratégia de armazenamento de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-4"]
         },
