@@ -91,5 +91,5 @@ Conventional-commit style prefixes: `feat:`, `fix:`, `docs:`, `refactor:`, `test
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/007-product-images-post/plan.md
+at specs/008-product-image-request-body/plan.md
 <!-- SPECKIT END -->

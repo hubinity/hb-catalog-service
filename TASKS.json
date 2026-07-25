@@ -253,7 +253,7 @@
           "phase": "contracts",
           "description": "Definir formato de requisição JSON (referência de URL, não multipart) do endpoint de registro de imagens de produto em contracts-catalog/openapi/catalog.yaml com base na decisão de armazenamento URL-only (spec 006-product-images-path, decisão do usuário de 2026-07-25)",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-2"]
         },
