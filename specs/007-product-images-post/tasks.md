@@ -80,7 +80,7 @@
 - [X] T010 Commitar em `platform-shared-contracts/` (branch `feature/stock-balance-path`) com prefixo convencional — sugestão: `feat(contracts): declare product image POST operation (T-002-2)` — restrito a `contracts-catalog/openapi/catalog.yaml`, registrando no corpo (a) que é a **primeira operação de mutação do contrato**, (b) o encerramento das pendências dos Princípios V e VI e (c) por que a role `admin` só pode ser expressa em prosa
 - [X] T011 Atualizar `hb-catalog-service/TASKS.json`: definir `"status": "done"` na task `T-002-2`, mantendo o restante intacto
 - [X] T012 Executar o roteiro completo de `hb-catalog-service/specs/007-product-images-post/quickstart.md` de ponta a ponta e atualizar os checklists da feature (`checklists/requirements.md`, `checklists/operation.md`) conforme o resultado
-- [ ] T013 Commitar em `hb-catalog-service/` (branch `feature/stock-balance-path`) os artefatos da feature — `specs/007-product-images-post/`, `TASKS.json`, bloco SPECKIT de `CLAUDE.md` — sugestão: `docs: add spec artifacts for product image POST operation (T-002-2)`
+- [X] T013 Commitar em `hb-catalog-service/` (branch `feature/stock-balance-path`) os artefatos da feature — `specs/007-product-images-post/`, `TASKS.json`, bloco SPECKIT de `CLAUDE.md` — sugestão: `docs: add spec artifacts for product image POST operation (T-002-2)`
 
 ---
 
