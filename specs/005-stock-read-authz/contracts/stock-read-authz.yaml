@@ -1,0 +1,28 @@
+# Fragmentos-alvo para contracts-catalog/openapi/catalog.yaml (T-001-5)
+# NÃO copiar os comentários de cabeçalho para o contrato.
+#
+# Escopo T-001-5: securitySchemes (bearerAuth), security global (raiz),
+# description do Path Item. Nada mais muda (FR-005).
+
+# ── Fragmento 1: securityScheme (adicionar em components/, ao lado de
+#    schemas: — a ordem entre securitySchemes e schemas é indiferente) ──
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Keycloak-issued JWT (realm hibit) presented as a Bearer token.
+
+# ── Fragmento 2: requisito security global (nível raiz do documento —
+#    p. ex. logo após o bloco `servers:` e antes de `tags:`) ──
+security:
+  - bearerAuth: []
+
+# ── Fragmento 3: description do Path Item de saldo (substitui o bloco
+#    atual; summary e operação permanecem) ──
+    description: |
+      Canonical read address for a product's on-hand stock snapshot.
+      The GET operation, its productId parameter, the response body, and
+      the authorization requirement are fully declared (T-001 chain
+      complete). Access requires a valid Bearer JWT (see the bearerAuth
+      security scheme); no admin role is required for reads.

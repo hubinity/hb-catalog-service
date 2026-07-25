@@ -226,7 +226,7 @@
           "phase": "contracts",
           "description": "Definir requisito de autorização da operação de leitura de saldo de estoque em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-001-4"]
         },
