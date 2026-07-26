@@ -280,7 +280,7 @@
           "phase": "contracts",
           "description": "Adicionar a propriedade images ao schema Product em contracts-catalog/openapi/catalog.yaml, para que as operações de leitura de produto exponham as URLs de imagem no contrato. Lacuna identificada na spec 009-product-image-response: nenhuma task existente cobre o schema Product do contrato — a cadeia T-003 cobre apenas entidade, migração Flyway, DTOs do serviço e mapper",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-4"]
         },
@@ -395,8 +395,8 @@
         {
           "id": "T-005-3",
           "phase": "api",
-          "description": "Definir a recepção multipart do handler de upload de imagens de produto com base em NÃO ESPECIFICADO NO PRD",
-          "source_reference": "PRD-HUBINITY.md",
+          "description": "Definir a recepção JSON do handler de registro de imagem de produto (corpo ProductImageRequest com a URL da imagem hospedada externamente), conforme a estratégia URL-only ratificada em T-002-5. Substitui a redação anterior, que previa recepção multipart — incompatível com o contrato: o serviço nunca recebe bytes de imagem",
+          "source_reference": "shared-contracts",
           "status": "refined",
           "decomposition_allowed": false,
           "depends_on": ["T-005-2"]
