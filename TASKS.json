@@ -285,13 +285,58 @@
           "depends_on": ["T-002-4"]
         },
         {
-          "id": "T-002-7",
+          "id": "T-002-7-1",
           "phase": "contracts",
-          "description": "Declarar o schema ProblemDetail (RFC 7807) em contracts-catalog/openapi/catalog.yaml e referenciá-lo no content dos desfechos de erro das operações do catálogo. Lacuna identificada na spec 009-product-image-response: o Princípio I da constituição exige RFC 7807 em toda resposta de erro do serviço, mas o contrato declara os desfechos de erro apenas com description, sem schema",
+          "description": "Declarar o schema ProblemDetail em components/schemas de contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
           "status": "refined",
-          "decomposition_allowed": true,
+          "decomposition_allowed": false,
           "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-7-2",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação getProductById em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-1"]
+        },
+        {
+          "id": "T-002-7-3",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação getStockItemByProductId em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-2"]
+        },
+        {
+          "id": "T-002-7-4",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 400 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-3"]
+        },
+        {
+          "id": "T-002-7-5",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 403 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-4"]
+        },
+        {
+          "id": "T-002-7-6",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "refined",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-5"]
         },
         {
           "id": "T-003-1",
