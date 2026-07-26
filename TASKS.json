@@ -289,7 +289,7 @@
           "phase": "contracts",
           "description": "Declarar o schema ProblemDetail em components/schemas de contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-4"]
         },
