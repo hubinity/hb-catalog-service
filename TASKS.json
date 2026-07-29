@@ -298,7 +298,7 @@
           "phase": "contracts",
           "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação getProductById em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-7-1"]
         },
