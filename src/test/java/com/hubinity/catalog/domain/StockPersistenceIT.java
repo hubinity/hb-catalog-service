@@ -34,7 +34,7 @@ import com.hubinity.catalog.api.dto.ProductRequest;
 import com.hubinity.catalog.api.dto.ProductResponse;
 import com.hubinity.catalog.api.dto.StockMovementRequest;
 import com.hubinity.catalog.api.dto.StockReservationRequest;
-import com.hubinity.catalog.api.error.InsufficientStockException;
+import com.hubinity.catalog.domain.error.InsufficientStockException;
 import com.hubinity.catalog.service.CategoryService;
 import com.hubinity.catalog.service.ProductService;
 import com.hubinity.catalog.service.StockService;

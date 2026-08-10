@@ -18,11 +18,7 @@ import com.hubinity.catalog.api.dto.PriceHistoryResponse;
 import com.hubinity.catalog.api.dto.ProductPageResponse;
 import com.hubinity.catalog.api.dto.ProductRequest;
 import com.hubinity.catalog.api.dto.ProductResponse;
-import com.hubinity.catalog.api.error.DuplicateSkuException;
-import com.hubinity.catalog.api.error.InvalidCategoryException;
 import com.hubinity.catalog.api.error.InvalidPaginationException;
-import com.hubinity.catalog.api.error.ProductHasStockOrReservationsException;
-import com.hubinity.catalog.api.error.ProductNotFoundException;
 import com.hubinity.catalog.api.mapper.ProductMapper;
 import com.hubinity.catalog.domain.CategoryRepository;
 import com.hubinity.catalog.domain.PriceHistory;
@@ -32,6 +28,10 @@ import com.hubinity.catalog.domain.ProductRepository;
 import com.hubinity.catalog.domain.StockItem;
 import com.hubinity.catalog.domain.StockItemRepository;
 import com.hubinity.catalog.domain.StockReservationRepository;
+import com.hubinity.catalog.domain.error.DuplicateSkuException;
+import com.hubinity.catalog.domain.error.InvalidCategoryException;
+import com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException;
+import com.hubinity.catalog.domain.error.ProductNotFoundException;
 import com.hubinity.catalog.integration.EventPublisher;
 
 /**
@@ -70,7 +70,7 @@ public class ProductService {
 
     @Transactional
     public ProductResponse create(ProductRequest request) {
-        if (!categories.existsById(request.categoryId())) {
+        if (categories.touchIfAlive(request.categoryId()) == 0) {
             throw new InvalidCategoryException(request.categoryId());
         }
         if (products.existsBySku(request.sku())) {

@@ -1,0 +1,57 @@
+# Fragmentos-alvo para contracts-catalog/openapi/catalog.yaml (T-001-4)
+# NÃO copiar os comentários de cabeçalho para o contrato.
+#
+# Escopo T-001-4: schema StockItem reescrito, content da '200', description
+# do Path Item. Nada mais muda (FR-005).
+
+# ── Fragmento 1: schema StockItem (substitui o bloco atual em
+#    components/schemas — campos alinhados a api/dto/StockItemResponse.java) ──
+    StockItem:
+      type: object
+      description: Current stock balance snapshot for a product.
+      required:
+        - productId
+        - available
+        - reserved
+        - reorderPoint
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: Product unique identifier
+        available:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Units available for sale or reservation
+        reserved:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Units held by active reservations
+        reorderPoint:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Threshold that signals restocking
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of the last counter change
+
+# ── Fragmento 2: resposta '200' da operação getStockItemByProductId
+#    (substitui o bloco atual; description permanece a da feature 002) ──
+        '200':
+          description: Current stock balance for the product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockItem'
+
+# ── Fragmento 3: description do Path Item (substitui o bloco atual;
+#    summary permanece) ──
+    description: |
+      Canonical read address for a product's on-hand stock snapshot.
+      The GET operation, its productId parameter, and the response body
+      are declared; authorization is declared by the follow-up contract
+      task (T-001-5).

@@ -16,13 +16,7 @@ import com.hubinity.catalog.api.dto.StockMovementRequest;
 import com.hubinity.catalog.api.dto.StockMovementResult;
 import com.hubinity.catalog.api.dto.StockReservationRequest;
 import com.hubinity.catalog.api.dto.StockReservationResult;
-import com.hubinity.catalog.api.error.InsufficientStockException;
 import com.hubinity.catalog.api.error.InvalidPaginationException;
-import com.hubinity.catalog.api.error.InvalidStockMovementTypeException;
-import com.hubinity.catalog.api.error.ProductNotFoundException;
-import com.hubinity.catalog.api.error.ReservationExpiredException;
-import com.hubinity.catalog.api.error.ReservationNotActiveException;
-import com.hubinity.catalog.api.error.ReservationNotFoundException;
 import com.hubinity.catalog.api.mapper.StockItemMapper;
 import com.hubinity.catalog.api.mapper.StockMovementMapper;
 import com.hubinity.catalog.api.mapper.StockReservationMapper;
@@ -35,6 +29,12 @@ import com.hubinity.catalog.domain.StockMovementType;
 import com.hubinity.catalog.domain.StockReservation;
 import com.hubinity.catalog.domain.StockReservationRepository;
 import com.hubinity.catalog.domain.StockReservationStatus;
+import com.hubinity.catalog.domain.error.InsufficientStockException;
+import com.hubinity.catalog.domain.error.InvalidStockMovementTypeException;
+import com.hubinity.catalog.domain.error.ProductNotFoundException;
+import com.hubinity.catalog.domain.error.ReservationExpiredException;
+import com.hubinity.catalog.domain.error.ReservationNotActiveException;
+import com.hubinity.catalog.domain.error.ReservationNotFoundException;
 import com.hubinity.catalog.integration.EventPublisher;
 
 /**

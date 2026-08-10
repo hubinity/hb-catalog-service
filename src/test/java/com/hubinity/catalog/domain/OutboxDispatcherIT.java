@@ -38,7 +38,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.ProductRequest;
-import com.hubinity.catalog.api.error.DuplicateSkuException;
+import com.hubinity.catalog.domain.error.DuplicateSkuException;
 import com.hubinity.catalog.config.RabbitConfig;
 import com.hubinity.catalog.integration.OutboxDispatcher;
 import com.hubinity.catalog.service.CategoryService;

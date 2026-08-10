@@ -216,7 +216,7 @@ class ProductPersistenceIT {
         stockItems.saveAndFlush(item);
 
         assertThatThrownBy(() -> productService.delete(product.id()))
-                .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
+                .isInstanceOf(com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException.class);
 
         item.setAvailable(0);
         stockItems.saveAndFlush(item);
@@ -225,7 +225,7 @@ class ProductPersistenceIT {
 
         // C1 (from /speckit-analyze): removed product absent from search/list and lookup.
         assertThatThrownBy(() -> productService.getById(product.id()))
-                .isInstanceOf(com.hubinity.catalog.api.error.ProductNotFoundException.class);
+                .isInstanceOf(com.hubinity.catalog.domain.error.ProductNotFoundException.class);
         var page = productService.search(categoryId, null, 0, 20, "name,asc");
         assertThat(page.content()).noneMatch(p -> p.id().equals(product.id()));
 
@@ -249,7 +249,7 @@ class ProductPersistenceIT {
         stockReservations.saveAndFlush(reservation);
 
         assertThatThrownBy(() -> productService.delete(product.id()))
-                .isInstanceOf(com.hubinity.catalog.api.error.ProductHasStockOrReservationsException.class);
+                .isInstanceOf(com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException.class);
     }
 
     @Test
@@ -273,7 +273,7 @@ class ProductPersistenceIT {
             try {
                 productService.delete(product.id());
                 return true;
-            } catch (com.hubinity.catalog.api.error.ProductHasStockOrReservationsException e) {
+            } catch (com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException e) {
                 return false;
             }
         });
@@ -318,7 +318,7 @@ class ProductPersistenceIT {
                 "DEL-CATPROD-" + UUID.randomUUID(), "Widget", null, new BigDecimal("9.90"), null, categoryId, null, null));
 
         assertThatThrownBy(() -> categoryService.delete(categoryId))
-                .isInstanceOf(com.hubinity.catalog.api.error.CategoryHasProductsException.class);
+                .isInstanceOf(com.hubinity.catalog.domain.error.CategoryHasProductsException.class);
 
         productService.delete(product.id());
 

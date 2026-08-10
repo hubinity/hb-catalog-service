@@ -12,16 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 import com.hubinity.catalog.api.dto.CategoryRequest;
 import com.hubinity.catalog.api.dto.CategoryResponse;
 import com.hubinity.catalog.api.dto.CategoryTreeNode;
-import com.hubinity.catalog.api.error.CategoryHasChildrenException;
-import com.hubinity.catalog.api.error.CategoryHasProductsException;
-import com.hubinity.catalog.api.error.CategoryNotFoundException;
-import com.hubinity.catalog.api.error.CircularReferenceException;
-import com.hubinity.catalog.api.error.DuplicateSlugException;
-import com.hubinity.catalog.api.error.InvalidParentException;
 import com.hubinity.catalog.api.mapper.CategoryMapper;
 import com.hubinity.catalog.domain.Category;
 import com.hubinity.catalog.domain.CategoryRepository;
 import com.hubinity.catalog.domain.ProductRepository;
+import com.hubinity.catalog.domain.error.CategoryHasChildrenException;
+import com.hubinity.catalog.domain.error.CategoryHasProductsException;
+import com.hubinity.catalog.domain.error.CategoryNotFoundException;
+import com.hubinity.catalog.domain.error.CircularReferenceException;
+import com.hubinity.catalog.domain.error.DuplicateSlugException;
+import com.hubinity.catalog.domain.error.InvalidParentException;
 
 /**
  * Business rules for {@code Category} CRUD and tree assembly that don't belong
@@ -133,7 +133,7 @@ public class CategoryService {
             }
             return;
         }
-        categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
+        Category entity = categories.findById(id).orElseThrow(() -> new CategoryNotFoundException(id));
         if (categories.existsByParentId(id)) {
             throw new CategoryHasChildrenException(id);
         }

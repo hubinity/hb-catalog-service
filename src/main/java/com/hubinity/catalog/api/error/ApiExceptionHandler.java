@@ -18,6 +18,22 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import com.hubinity.catalog.domain.error.CategoryHasChildrenException;
+import com.hubinity.catalog.domain.error.CategoryHasProductsException;
+import com.hubinity.catalog.domain.error.CategoryNotFoundException;
+import com.hubinity.catalog.domain.error.CircularReferenceException;
+import com.hubinity.catalog.domain.error.DuplicateSkuException;
+import com.hubinity.catalog.domain.error.DuplicateSlugException;
+import com.hubinity.catalog.domain.error.InsufficientStockException;
+import com.hubinity.catalog.domain.error.InvalidCategoryException;
+import com.hubinity.catalog.domain.error.InvalidParentException;
+import com.hubinity.catalog.domain.error.InvalidStockMovementTypeException;
+import com.hubinity.catalog.domain.error.ProductHasStockOrReservationsException;
+import com.hubinity.catalog.domain.error.ProductNotFoundException;
+import com.hubinity.catalog.domain.error.ReservationExpiredException;
+import com.hubinity.catalog.domain.error.ReservationNotActiveException;
+import com.hubinity.catalog.domain.error.ReservationNotFoundException;
+
 /**
  * Global exception → RFC 7807 {@link ProblemDetail} mapping for the catalog API.
  *
