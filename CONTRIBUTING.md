@@ -1,82 +1,64 @@
-# 🤝 Guia de Contribuição
+# 🤝 Guia de Contribuição — hb-catalog-service
 
-Bem-vindo ao projeto **Café & Parafuso**!
-Leia este guia com atenção antes de fazer qualquer alteração no repositório.
+Microsserviço de catálogo do ecossistema **Hubinity** (marca HiBit).
+Leia este guia antes de abrir qualquer Pull Request.
 
 ---
 
 ## 1. Pré-requisitos
 
-- Conta no GitHub criada
-- Git instalado na máquina
-- Repositório original **forkado** para sua conta
+- JDK 21 (Temurin recomendado)
+- Maven 3.9.x
+- Docker + Docker Compose (Testcontainers e stack local via `platform-infra`)
+- Acesso ao repositório `hubinity/hb-catalog-service`
+
+### Setup inicial
+
+```bash
+# 1. Buildar os contratos compartilhados (uma vez por máquina, ou após mudanças)
+( cd ../platform-shared-contracts && mvn -B -DskipTests install )
+
+# 2. Confirmar que o build passa
+mvn -B verify
+```
 
 ---
 
-## 2. Fluxo de Trabalho (Passo a Passo)
+## 2. Fluxo de Trabalho
 
-### 2.1 Faça o fork do repositório oficial
-No GitHub, acesse o repositório do professor e clique em **Fork**.
+### 2.1 Crie uma branch a partir de `main`
 
-### 2.2 Clone o seu fork localmente
 ```bash
-git clone https://github.com/SEU_USUARIO/cp-product-catalog.git
-cd cp-product-catalog
+git checkout main && git pull
+git checkout -b feature/nome-da-funcionalidade   # ou fix/nome-do-bug
 ```
 
-### 2.3 Configure o repositório original como `upstream`
+> ⚠️ **Nunca trabalhe diretamente na branch `main`.** Push direto é bloqueado.
+
+### 2.2 Desenvolva e faça commits seguindo o padrão (seção 3)
+
+### 2.3 Rode os quality gates antes de abrir o PR
+
 ```bash
-git remote add upstream https://github.com/USUARIO_PROFESSOR/cp-product-catalog.git
+# Obrigatório sempre
+mvn -B verify
+
+# Obrigatório se você tocou em persistência, migrations, outbox ou messaging
+mvn -P integration-tests verify   # requer Docker daemon ativo
 ```
 
-### 2.4 Crie uma branch para sua tarefa
-```bash
-# Formato obrigatório
-git checkout -b feature/nome-da-funcionalidade
+### 2.4 Abra um Pull Request para `main`
 
-# Exemplos
-git checkout -b feature/tela-produto
-git checkout -b fix/calculo-total
-```
-
-> ⚠️ **Nunca trabalhe diretamente na branch `main` ou `develop`.**
-
-### 2.5 Desenvolva e faça commits
-```bash
-git add .
-git commit -m "feat: adiciona tela de listagem de produtos"
-```
-
-Siga o padrão de mensagens abaixo (seção 4).
-
-### 2.6 Suba sua branch para o seu fork
-```bash
-git push origin feature/nome-da-funcionalidade
-```
-
-### 2.7 Abra um Pull Request (PR)
-1. Acesse seu fork no GitHub
-2. Clique em **Compare & pull request**
-3. Direcione o PR para a branch `develop` do repositório do professor
-4. Preencha o título e a descrição conforme o template (seção 5)
-5. Aguarde a revisão
+- Preencha o template (seção 4).
+- O CODEOWNERS (`.github/CODEOWNERS`) atribui os revisores automaticamente
+  (`@hubinity/backend` para código Java, `@hubinity/devops` para Dockerfile/CI).
+- Merge somente após aprovação — merge sem review é bloqueado.
 
 ---
 
-## 3. Estrutura de Branches
+## 3. Padrão de Mensagens de Commit
 
-| Branch | Finalidade | Quem gerencia |
-|---|---|---|
-| `main` | Versão estável e entregável | Professor (orientador) |
-| `develop` | Integração das funcionalidades | Professor (orientador) |
-| `feature/nome` | Desenvolvimento de nova funcionalidade | Aluno |
-| `fix/nome` | Correção de bug | Aluno |
-
----
-
-## 4. Padrão de Mensagens de Commit
-
-Use o formato: `tipo: descrição curta no presente`
+Formato: `tipo: descrição curta no presente` (escopo opcional: `feat(catalog): …`).
 
 | Tipo | Quando usar |
 |---|---|
@@ -86,19 +68,20 @@ Use o formato: `tipo: descrição curta no presente`
 | `style` | Formatação, sem mudança de lógica |
 | `refactor` | Refatoração de código |
 | `test` | Adição ou correção de testes |
+| `chore` | Manutenção (CI, CODEOWNERS, deps) |
 
-**Exemplos:**
+**Exemplos reais do histórico:**
+
 ```
-feat: adiciona botão de pagamento via Pix
-fix: corrige cálculo do total do carrinho
-docs: atualiza instruções de execução no README
+feat(catalog): stock endpoints + reservation saga + outbox pattern
+fix(catalog): close subcategory/reparent race in CategoryService delete guard
+docs: add outbox design documentation
+chore: add CODEOWNERS to define backend reviewers
 ```
 
 ---
 
-## 5. Template de Pull Request
-
-Ao abrir um PR, use a estrutura abaixo na descrição:
+## 4. Template de Pull Request
 
 ```
 ## O que foi feito
@@ -109,32 +92,29 @@ Descreva brevemente o que foi implementado.
 2. Passo 2
 
 ## Checklist
-- [ ] O código compila sem erros
-- [ ] Testei manualmente
+- [ ] `mvn -B verify` passa
+- [ ] `mvn -P integration-tests verify` passa (se toquei persistência/messaging)
+- [ ] Migrations novas são aditivas (nunca editei migration já aplicada)
 - [ ] Não quebrei funcionalidade existente
-- [ ] O commit segue o padrão definido
+- [ ] Os commits seguem o padrão definido
 ```
 
 ---
 
-## 6. Regras Gerais
+## 5. Regras Específicas deste Serviço
 
-- ❌ Não suba arquivos `.class`, `.jar` ou pastas de build
-- ❌ Não commite senhas, tokens ou dados pessoais
-- ❌ Não faça merge sem aprovação do orientador
-- ✅ Mantenha o `.gitignore` atualizado
-- ✅ Sempre sincronize com o `upstream` antes de começar
+Antes de codar, leia `CLAUDE.md` (visão de arquitetura) e os ADRs em `docs/adr/`. Resumo do que é inegociável:
 
-### Sincronizar com o repositório oficial
-```bash
-git fetch upstream
-git checkout develop
-git merge upstream/develop
-```
+- **Flyway only** (`ddl-auto: validate`) — mudança de schema = nova migration numerada em `src/main/resources/db/migration/`. Nunca edite uma migration já aplicada.
+- **Concorrência de estoque** via `UPDATE … WHERE available >= :qty` condicional — não introduza `SELECT … FOR UPDATE` em novos checks.
+- **Eventos** sempre via Transactional Outbox (`EventPublisher` dentro da TX de negócio) — nunca `rabbitTemplate.send()` direto no service. Receita completa em `README-outbox.md`.
+- **`Idempotency-Key`** é obrigatório nos endpoints mutantes de estoque — novos endpoints mutantes de estoque devem ser adicionados aos patterns do `IdempotencyFilter`.
+- **Erros** sempre como RFC 7807 ProblemDetail: crie exceção tipada em `api/error/` e trate no `ApiExceptionHandler`.
+- ❌ Não suba artefatos de build (`target/`, `.class`, `.jar`) nem credenciais em YAML — config sensível só via variável de ambiente.
 
 ---
 
-## 7. Dúvidas?
+## 6. Dúvidas?
 
-Fale com o orientador antes de fazer algo que não tem certeza.
-É melhor perguntar do que precisar desfazer um commit. 😉
+Abra uma issue ou pergunte no canal do time antes de fazer algo que não tem certeza.
+É melhor perguntar do que precisar desfazer um merge. 😉

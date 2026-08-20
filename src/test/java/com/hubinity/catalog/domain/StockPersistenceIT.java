@@ -157,11 +157,25 @@ class StockPersistenceIT {
         await(250);
         stockService.sweepExpiredReservations();
 
+        // Assertion (a): Verify reservation status is EXPIRED
         StockReservation reservation = stockReservations.findById(reservationId).orElseThrow();
         assertThat(reservation.getStatus()).isEqualTo(StockReservationStatus.EXPIRED);
+
+        // Assertion (a): Verify available quantity was restored
         StockItem finalState = stockItems.findById(productId).orElseThrow();
         assertThat(finalState.getAvailable()).isEqualTo(10);
         assertThat(finalState.getReserved()).isZero();
+
+        // Assertion (a): Verify a StockMovement(RELEASE) row was created by the sweep
+        // Expected movements: 1x IN (initial stock) + 1x RESERVE (reservation) + 1x RELEASE (sweep-driven expiry)
+        var history = stockService.getMovementHistory(productId, 0, 50);
+        assertThat(history.content())
+                .extracting(m -> m.type())
+                .contains(StockMovementType.IN, StockMovementType.RESERVE, StockMovementType.RELEASE);
+        long releaseCount = history.content().stream()
+                .filter(m -> m.type() == StockMovementType.RELEASE)
+                .count();
+        assertThat(releaseCount).isEqualTo(1).as("Exactly one RELEASE movement should exist (sweep-driven expiry)");
     }
 
     @Test
