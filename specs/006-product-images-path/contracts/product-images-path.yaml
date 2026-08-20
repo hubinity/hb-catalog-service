@@ -1,0 +1,26 @@
+# Fragmento-alvo de T-002-1 — NÃO é um documento OpenAPI completo.
+#
+# Bloco exato a inserir em platform-shared-contracts/contracts-catalog/openapi/catalog.yaml,
+# sob `paths:`, imediatamente APÓS o Path Item /api/v1/products/{productId}/stock.
+# Indentação: 2 espaços (nível de `paths`), consistente com os paths existentes.
+#
+# Escopo: APENAS o Path Item. Sem operação (T-002-2), sem request body (T-002-3),
+# sem response schema (T-002-4). Sem `tags` (é campo de operação em OpenAPI 3.1).
+# Sem `security` — herda o `bearerAuth` global declarado na raiz por T-001-5.
+
+  /api/v1/products/{productId}/images:
+    summary: Image references for a product
+    description: |
+      Address for managing a product's image references. Images are stored
+      externally; this API records only their URLs (URL-only reference
+      strategy) and never receives image bytes. Operations on this path are
+      declared by the remaining T-002 tasks. Access requires a valid Bearer
+      JWT (inherited from the document-level bearerAuth security scheme).
+    parameters:
+      - name: productId
+        in: path
+        required: true
+        description: Product UUID
+        schema:
+          type: string
+          format: uuid

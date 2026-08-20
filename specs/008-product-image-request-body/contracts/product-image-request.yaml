@@ -1,0 +1,60 @@
+# Fragmentos-alvo de T-002-3 — NÃO é um documento OpenAPI completo.
+#
+# Arquivo destino: platform-shared-contracts/contracts-catalog/openapi/catalog.yaml
+# Operação destino: addProductImage, no Path Item /api/v1/products/{productId}/images
+#                   (declarada por T-002-2, commit 854c02f)
+#
+# MUDANÇA ESTRITAMENTE ADITIVA — ao contrário de T-002-2 e como em T-002-1.
+# Critério de diff: NENHUMA linha pode aparecer como '-'.
+# Em particular, a `description` do Path Item NÃO é reescrita: ela segue verdadeira
+# como declaração de proveniência (T-002-4 ainda pendente).
+#
+# Escopo: corpo de requisição + desfecho 400 + schema.
+# Sem `content` no 400 (T-002-4 traz os corpos de resposta).
+# Sem 409 (semântica de duplicata realocada à cadeia T-003).
+# Sem pattern na URL, sem additionalProperties: false — ambos decisões registradas.
+
+# ============================================================================
+# FRAGMENTO 1 — INSERIR na operação `post` (addProductImage),
+# entre a `description` da operação e o bloco `responses`.
+# Indentação: 6 espaços.
+# ============================================================================
+
+      requestBody:
+        required: true
+        description: The image reference to register
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductImageRequest'
+
+# ============================================================================
+# FRAGMENTO 2 — INSERIR em `responses`, ANTES do desfecho '403'.
+# Indentação: 8 espaços. Description-only, sem `content`.
+# Obrigação herdada de T-002-2, que deferiu este desfecho a esta task.
+# ============================================================================
+
+        '400':
+          description: Malformed request body, or url absent, not a valid URI, or too long
+
+# ============================================================================
+# FRAGMENTO 3 — ANEXAR em `components/schemas`, APÓS o schema `StockMovement`
+# (último da lista hoje). Indentação: 4 espaços.
+# ============================================================================
+
+    ProductImageRequest:
+      type: object
+      description: |
+        A reference to an image hosted outside this system. The catalog
+        stores only the URL; image bytes are never transmitted. HTTPS URLs
+        are expected — an http:// URL will be blocked as mixed content by
+        browsers rendering the catalog over HTTPS.
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+          minLength: 1
+          maxLength: 2048
+          description: Absolute URL of the externally hosted image

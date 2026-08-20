@@ -235,7 +235,7 @@
           "phase": "contracts",
           "description": "Definir path do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": []
         },
@@ -244,16 +244,16 @@
           "phase": "contracts",
           "description": "Declarar operação POST no path de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-1"]
         },
         {
           "id": "T-002-3",
           "phase": "contracts",
-          "description": "Definir formato de requisição multipart do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
+          "description": "Definir formato de requisição JSON (referência de URL, não multipart) do endpoint de registro de imagens de produto em contracts-catalog/openapi/catalog.yaml com base na decisão de armazenamento URL-only (spec 006-product-images-path, decisão do usuário de 2026-07-25)",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-2"]
         },
@@ -262,7 +262,7 @@
           "phase": "contracts",
           "description": "Definir schema de resposta do endpoint de upload de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-3"]
         },
@@ -271,9 +271,72 @@
           "phase": "contracts",
           "description": "Definir estratégia de armazenamento de imagens de produto em contracts-catalog/openapi/catalog.yaml com base em NÃO ESPECIFICADO NO PRD",
           "source_reference": "shared-contracts",
-          "status": "refined",
+          "status": "done",
           "decomposition_allowed": false,
           "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-6",
+          "phase": "contracts",
+          "description": "Adicionar a propriedade images ao schema Product em contracts-catalog/openapi/catalog.yaml, para que as operações de leitura de produto exponham as URLs de imagem no contrato. Lacuna identificada na spec 009-product-image-response: nenhuma task existente cobre o schema Product do contrato — a cadeia T-003 cobre apenas entidade, migração Flyway, DTOs do serviço e mapper",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-7-1",
+          "phase": "contracts",
+          "description": "Declarar o schema ProblemDetail em components/schemas de contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-4"]
+        },
+        {
+          "id": "T-002-7-2",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação getProductById em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-1"]
+        },
+        {
+          "id": "T-002-7-3",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação getStockItemByProductId em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-2"]
+        },
+        {
+          "id": "T-002-7-4",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 400 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-3"]
+        },
+        {
+          "id": "T-002-7-5",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 403 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-4"]
+        },
+        {
+          "id": "T-002-7-6",
+          "phase": "contracts",
+          "description": "Referenciar o schema ProblemDetail no content do desfecho 404 da operação addProductImage em contracts-catalog/openapi/catalog.yaml com base no platform-shared-contracts",
+          "source_reference": "shared-contracts",
+          "status": "done",
+          "decomposition_allowed": false,
+          "depends_on": ["T-002-7-5"]
         },
         {
           "id": "T-003-1",
@@ -377,8 +440,8 @@
         {
           "id": "T-005-3",
           "phase": "api",
-          "description": "Definir a recepção multipart do handler de upload de imagens de produto com base em NÃO ESPECIFICADO NO PRD",
-          "source_reference": "PRD-HUBINITY.md",
+          "description": "Definir a recepção JSON do handler de registro de imagem de produto (corpo ProductImageRequest com a URL da imagem hospedada externamente), conforme a estratégia URL-only ratificada em T-002-5. Substitui a redação anterior, que previa recepção multipart — incompatível com o contrato: o serviço nunca recebe bytes de imagem",
+          "source_reference": "shared-contracts",
           "status": "refined",
           "decomposition_allowed": false,
           "depends_on": ["T-005-2"]

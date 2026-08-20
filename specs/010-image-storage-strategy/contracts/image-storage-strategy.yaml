@@ -1,0 +1,95 @@
+# Phase 1 — Contract fragments: Estratégia de armazenamento de imagens de produto
+# Feature: 010-image-storage-strategy · Task: T-002-5 · Date: 2026-07-25
+#
+# Estes são os DOIS blocos-alvo em seu ESTADO FINAL, destinados a
+# platform-shared-contracts/contracts-catalog/openapi/catalog.yaml.
+#
+# Este arquivo é referência de revisão, NÃO um documento OpenAPI válido por si só
+# (contém fragmentos, não o documento inteiro) e NÃO é consumido por build algum.
+#
+# Regra de ouro da entrega (FR-017): no diff do catalog.yaml, toda linha removida
+# DEVE pertencer ao bloco `description` do Path Item de imagens. Qualquer outra
+# remoção está fora de escopo.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BLOCO 1 — info.description   (ADIÇÃO; as 2 linhas existentes ficam intactas)
+#
+# FR-001 nomeia a estratégia · FR-002 hospedagem externa + só URLs absolutas
+# FR-003 nunca bytes, sem upload/download/transformação, sem URI por imagem
+# FR-004 fronteira de responsabilidade (o conteúdo novo desta task)
+# FR-005 semântica de remoção · FR-006 HTTPS · FR-007 linhas originais intactas
+# FR-008 este é o ÚNICO lugar canônico da declaração
+# ─────────────────────────────────────────────────────────────────────────────
+info:
+  title: Hubinity Catalog API
+  version: 0.1.0
+  description: |
+    Contract for the Catalog domain. Owns products, categories, and on-hand stock.
+    Backend services consume the generated DTOs from this module.
+
+    Product image storage — URL-only reference strategy: product images are
+    hosted outside this system. The catalog persists only absolute URLs and
+    never receives, stores, or serves image bytes; there is no upload,
+    download, or transformation operation, and no per-image resource URI.
+    HTTPS URLs are expected — an http:// URL will be blocked as mixed content
+    by browsers rendering the catalog over HTTPS. Availability and lifecycle
+    of the referenced file belong to the external host: the catalog does not
+    verify that a URL resolves, and a reference that stops resolving is not a
+    contract violation. Removing an image removes the reference, never a
+    stored file.
+  contact:
+    name: Hubinity Platform
+    email: platform@hubinity.local
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BLOCO 2 — description do Path Item de imagens   (REESCRITA — única remoção)
+#
+# Texto REMOVIDO (andaime de proveniência, agora falso — ambas concluíram):
+#   "The POST operation is declared; its request body and response body are
+#    completed by T-002-3 and T-002-4."
+#
+# FR-009 estado final (cadeia T-002 completa) · FR-010 sem menção a tasks
+# FR-011 preserva autorização · FR-012 remissão de UMA frase, nomeando o nível
+#        do documento, sem reproduzir o conteúdo de FR-004
+# FR-013 summary intocado
+#
+# Forma espelhada de T-001-5 (68873d5), que encerrou a cadeia T-001 com:
+#   "The GET operation, its productId parameter, the response body, and the
+#    authorization requirement are fully declared (T-001 chain complete)."
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+  /api/v1/products/{productId}/images:
+    summary: Image references for a product      # INTOCADO (FR-013)
+    description: |
+      Address for managing a product's image references. The POST operation,
+      its request body, its response body, and the authorization requirement
+      are fully declared (T-002 chain complete). Images follow the URL-only
+      reference strategy declared at the document level: this API records only
+      their URLs and never receives image bytes. Access requires a valid
+      Bearer JWT (inherited from the document-level bearerAuth security
+      scheme); registering an image additionally requires the admin role.
+
+    # ── Tudo abaixo deste ponto permanece EXATAMENTE como está hoje (FR-016):
+    #    parameters: productId
+    #    post: addProductImage
+    #      requestBody → ProductImageRequest        (T-002-3, done — FR-014)
+    #      responses: 201 → ProductImageResponse    (T-002-4, done — FR-014)
+    #                 400 / 403 / 404               description-only
+    #                 (corpos de erro seguem sem schema até T-002-7)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# NÃO TOCAR — enumerado por nome para que "elemento existente" não vire dúvida
+# ─────────────────────────────────────────────────────────────────────────────
+#
+#   components.schemas.ProductImageRequest    → T-002-3 (40dd8e0), done
+#     · em especial: NENHUM `pattern` de HTTPS (FR-015; proposta T-002-8)
+#     · `format: uri`, `minLength: 1`, `maxLength: 2048` seguem como estão
+#   components.schemas.ProductImageResponse   → T-002-4 (4fa9056), done
+#   components.schemas.Product                → alvo de T-002-6, não desta task
+#   components.schemas.Category / StockItem / StockMovement
+#   components.securitySchemes.bearerAuth     → T-001-5 (68873d5)
+#   security (raiz)                           → T-001-5 (68873d5)
+#   todos os demais paths e operações
+#
+# Resultado esperado da geração: 6 schemas ↔ 6 DTOs, checksum IDÊNTICO em todos.
+# Nenhum arquivo criado, alterado ou removido. Ver quickstart.md §Gate 2.

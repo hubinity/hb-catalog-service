@@ -1,0 +1,89 @@
+# Phase 1 — Contract fragment: Propriedade images no schema Product
+# Feature: 011-product-schema-images · Task: T-002-6 · Date: 2026-07-26
+#
+# Este é o ÚNICO bloco-alvo, em estado final, destinado a
+# platform-shared-contracts/contracts-catalog/openapi/catalog.yaml
+#
+# Arquivo de referência para revisão. NÃO é um documento OpenAPI válido por si só
+# (é fragmento) e NÃO é consumido por build algum.
+#
+# Regra de ouro (FR-014): a mudança é ESTRITAMENTE ADITIVA.
+#   git diff -U0 -- …/catalog.yaml | grep '^-' | grep -v '^---'   → SEM SAÍDA
+#   (encadeamento, não `grep '^-[^-]'`: linha em branco removida aparece como
+#    `-` sozinho e escaparia do segundo padrão — defeito C1 da spec 010)
+
+components:
+  schemas:
+    Product:
+      # ─────────────────────────────────────────────────────────────────────
+      # INTOCADO (FR-006): required permanece exatamente como está hoje.
+      # `images` NÃO entra aqui — produto sem imagem é o estado inicial de
+      # todo produto, e torná-la obrigatória quebraria a leitura de qualquer
+      # produto ainda não ilustrado.
+      # ─────────────────────────────────────────────────────────────────────
+      required:
+        - id
+        - sku
+        - name
+        - price
+        - categoryId
+        - active
+
+      properties:
+        # ───────────────────────────────────────────────────────────────────
+        # INTOCADAS (FR-007): id, sku, name, description, price, categoryId,
+        # active, createdAt, updatedAt — as nove permanecem como estão.
+        # A `description` do próprio schema Product também (FR-011).
+        # ───────────────────────────────────────────────────────────────────
+
+        # ═══ ÚNICA ADIÇÃO — anexada ao fim de `properties`, após `updatedAt` ═══
+        images:
+          type: array
+          description: |
+            Absolute URLs of the product's images, in order — the first
+            element is the primary image. Absent or empty when the product
+            has no image registered. Images are hosted externally; see the
+            URL-only reference strategy declared at the document level.
+          items:
+            type: string
+            format: uri
+            maxLength: 2048
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CONJUNTO FECHADO (FR-003) — as restrições dos itens são EXATAMENTE as três
+# acima, idênticas às de ProductImageResponse.images. Acrescentar qualquer
+# outra REPROVA a entrega, ainda que pareça melhoria:
+#
+#   minLength   ✗  valida ENTRADA, não saída. Existe em ProductImageRequest.url
+#                  porque lá rejeita string vazia submetida pelo cliente; numa
+#                  resposta, restrição só descreve o que o servidor produz.
+#                  A simetria devida é com a coleção equivalente
+#                  (ProductImageResponse.images), não com a submissão avulsa.
+#   pattern     ✗  enforcement de HTTPS é mudança de comportamento — proposta
+#                  T-002-8, ainda não inserida no tracker.
+#   minItems    ✗  FR-008 — afirmação de comportamento (cadeias T-003/T-005).
+#   maxItems    ✗  FR-009 — teto pertence ao ATRIBUTO; alocado à cadeia T-003
+#                  por T-002-3.
+#   readOnly    ✗  FR-010 — VERIFICADO: `Product` é referenciado uma única vez
+#                  no documento (linha 52, desfecho 200 de getProductById) e
+#                  NUNCA é corpo de requisição; o único requestBody do
+#                  documento usa ProductImageRequest. Não há ambiguidade de
+#                  escrita a resolver, e declará-lo alteraria o DTO gerado sem
+#                  necessidade, interferindo no gate de FR-016/FR-017.
+#   default     ✗  descreveria comportamento do servidor (sempre emitir a
+#                  chave), decisão que esta task não tem mandato para tomar.
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# NÃO TOCAR — enumerado por nome para que "elemento existente" não vire dúvida:
+#
+#   components.schemas.ProductImageRequest    → T-002-3 (40dd8e0), done
+#   components.schemas.ProductImageResponse   → T-002-4 (4fa9056), done — molde
+#   components.schemas.Category / StockItem / StockMovement
+#   info.description                          → T-002-5 (c6eaccb), done —
+#                                               é a declaração à qual a
+#                                               description acima remete (FR-005)
+#   todos os paths, operações, parâmetros e desfechos (FR-013)
+#
+# Resultado esperado da geração: 6 schemas ↔ 6 DTOs — nenhum arquivo criado,
+# nenhum removido, EXATAMENTE UM alterado (Product.java, campo `images`).
+# Ver quickstart.md §Gate 2 e §Gate 3.

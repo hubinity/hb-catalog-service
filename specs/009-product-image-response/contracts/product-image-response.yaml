@@ -1,0 +1,59 @@
+# Fragmentos-alvo de T-002-4 — NÃO é um documento OpenAPI completo.
+#
+# Arquivo destino: platform-shared-contracts/contracts-catalog/openapi/catalog.yaml
+# Operação destino: addProductImage (declarada em 854c02f, corpo em 40dd8e0)
+#
+# MUDANÇA ESTRITAMENTE ADITIVA — zero remoções, como em T-002-1 e T-002-3.
+# A `description` do 201 NÃO é tocada: o `content` é acrescentado ABAIXO dela.
+# A `description` do Path Item também NÃO é tocada — segue verdadeira como
+# proveniência; sua limpeza final cabe a T-002-5, última da cadeia.
+#
+# Escopo: apenas o corpo do 201. Os desfechos 400/403/404 permanecem
+# description-only (a modelagem de ProblemDetail é a proposta T-002-7).
+
+# ============================================================================
+# FRAGMENTO 1 — ACRESCENTAR ao desfecho '201' existente, após sua `description`.
+# Indentação: 10 espaços (nível de `content`, dentro do '201').
+#
+# Estado atual do bloco, para referência (NÃO reescrever estas linhas):
+#
+#         '201':
+#           description: |
+#             Image reference registered. No Location header is returned:
+#             under the URL-only strategy there is no per-image resource URI.
+#
+# Acrescentar em seguida:
+# ============================================================================
+
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImageResponse'
+
+# ============================================================================
+# FRAGMENTO 2 — ANEXAR em `components/schemas`, APÓS `ProductImageRequest`
+# (último da lista hoje). Indentação: 4 espaços.
+# ============================================================================
+
+    ProductImageResponse:
+      type: object
+      description: |
+        The product's image references after the registration. Returns the
+        full resulting collection, not just the newly added entry, so the
+        caller can confirm the outcome and observe ordering — the first
+        element is the product's primary image.
+      required:
+        - productId
+        - images
+      properties:
+        productId:
+          type: string
+          format: uuid
+          description: Product the images belong to
+        images:
+          type: array
+          description: Full resulting collection of image URLs, in order
+          items:
+            type: string
+            format: uri
+            maxLength: 2048
